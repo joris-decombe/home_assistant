@@ -1,0 +1,195 @@
+title: Smart Home Control
+views:
+  - title: Home
+    path: home
+    icon: mdi:home
+    badges: []
+    cards:
+      # Welcome Header
+      - type: markdown
+        content: |
+          # Welcome Home, {{ user }}!
+          {{ states('weather.forecast_home') | title }} · {{ state_attr('weather.forecast_home', 'temperature') }}°C
+
+      # Weather Card
+      - type: weather-forecast
+        entity: weather.forecast_home
+        show_forecast: true
+        forecast_type: daily
+
+      # Sun Position
+      - type: entities
+        title: Sun & Time
+        icon: mdi:weather-sunny
+        entities:
+          - entity: sun.sun
+            name: Sun Position
+          - entity: sensor.sun_next_rising
+            name: Sunrise
+          - entity: sensor.sun_next_setting
+            name: Sunset
+
+      # Person Tracking
+      - type: entities
+        title: People
+        icon: mdi:account-group
+        entities:
+          - entity: person.joris
+            name: Joris
+
+      # Shopping List
+      - type: shopping-list
+        title: Shopping List
+
+  - title: Lights
+    path: lights
+    icon: mdi:lightbulb-group
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Lights
+          Add your smart lights to Home Assistant and they will appear here.
+
+          **Supported integrations:**
+          - Philips Hue
+          - LIFX
+          - Zigbee/Z-Wave lights
+          - WiFi smart bulbs
+
+      # Placeholder for light cards - uncomment when you have lights
+      # - type: light
+      #   entity: light.living_room
+      #   name: Living Room
+
+      # Light group example
+      # - type: entities
+      #   title: All Lights
+      #   show_header_toggle: true
+      #   entities:
+      #     - entity: light.living_room
+      #     - entity: light.bedroom
+      #     - entity: light.kitchen
+
+  - title: Climate
+    path: climate
+    icon: mdi:thermometer
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Climate Control
+          Add thermostats, AC units, or fans to control them here.
+
+          **Supported integrations:**
+          - Nest
+          - Ecobee
+          - Smart AC controllers
+          - Smart fans
+
+      # Placeholder for climate cards
+      # - type: thermostat
+      #   entity: climate.living_room
+
+      # - type: entities
+      #   title: Climate Sensors
+      #   entities:
+      #     - entity: sensor.living_room_temperature
+      #     - entity: sensor.living_room_humidity
+
+  - title: Security
+    path: security
+    icon: mdi:shield-home
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Security
+          Add cameras, door sensors, and alarms here.
+
+          **Supported integrations:**
+          - Ring
+          - Nest cameras
+          - Zigbee door/window sensors
+          - Motion sensors
+
+      # Placeholder for security cards
+      # - type: picture-entity
+      #   entity: camera.front_door
+      #   camera_view: live
+
+      # - type: entities
+      #   title: Door & Window Sensors
+      #   entities:
+      #     - entity: binary_sensor.front_door
+      #     - entity: binary_sensor.back_door
+
+  - title: Media
+    path: media
+    icon: mdi:play-circle
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Media Players
+          Add your smart speakers, TVs, and media devices here.
+
+          **Supported integrations:**
+          - Sonos
+          - Chromecast
+          - Apple TV
+          - Smart TVs
+
+      # Placeholder for media cards
+      # - type: media-control
+      #   entity: media_player.living_room_tv
+
+      # - type: media-control
+      #   entity: media_player.sonos_speaker
+
+  - title: Switches
+    path: switches
+    icon: mdi:power-socket
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Smart Plugs & Switches
+          Control your smart plugs and switches here.
+
+          **Supported integrations:**
+          - TP-Link Kasa
+          - Wemo
+          - Zigbee/Z-Wave switches
+          - WiFi smart plugs
+
+      # Placeholder for switch cards
+      # - type: entities
+      #   title: Living Room
+      #   show_header_toggle: false
+      #   entities:
+      #     - entity: switch.tv_plug
+      #     - entity: switch.lamp_plug
+
+  - title: Automations
+    path: automations
+    icon: mdi:robot
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## Automations & Scripts
+          Manage your home automations here.
+
+      - type: entities
+        title: System
+        entities:
+          - entity: conversation.home_assistant
+            name: Voice Assistant
+
+      # Placeholder for automation cards
+      # - type: entities
+      #   title: Automations
+      #   entities:
+      #     - entity: automation.turn_on_lights_at_sunset
+      #     - entity: automation.morning_routine

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "homeassistant": {
+      "command": "npx",
+      "args": ["-y", "@tevonsb/homeassistant-mcp"],
+      "env": {
+        "HASS_HOST": "http://localhost:8124",
+        "HASS_TOKEN": "your_long_lived_access_token_here"
+      }
+    }
+  }
+}

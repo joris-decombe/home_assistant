@@ -1,0 +1,29 @@
+# Environment files with secrets
+.env
+*.env.local
+
+# Claude Code settings with tokens
+.claude/settings.local.json
+
+# Home Assistant sensitive files
+config/secrets.yaml
+config/.storage/
+config/home-assistant_v2.db
+config/home-assistant_v2.db-shm
+config/home-assistant_v2.db-wal
+config/home-assistant.log*
+config/.HA_VERSION
+config/.cloud/
+config/.ha_run.lock
+config/deps/
+config/tts/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
