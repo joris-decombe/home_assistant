@@ -27,3 +27,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Raspberry Pi image build
+rpi/image.env
+rpi/build/

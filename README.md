@@ -35,6 +35,7 @@ A Docker-based Home Assistant setup with Claude Code MCP integration.
 | `config/configuration.yaml` | Main HA configuration |
 | `config/dashboards/smart_home.yaml` | Custom dashboard |
 | `.claude/settings.local.json` | MCP server config (not committed) |
+| `rpi/` | Builds a Home Assistant OS image for a Raspberry Pi ([rpi/README.md](rpi/README.md)) |
 
 ## Dashboard
 
