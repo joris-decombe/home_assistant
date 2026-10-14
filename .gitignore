@@ -18,6 +18,10 @@ config/.ha_run.lock
 config/deps/
 config/tts/
 
+# VM files (large binary images)
+vm/*.vhdx
+vm/*.vhdx.zip
+
 # OS files
 .DS_Store
 Thumbs.db
