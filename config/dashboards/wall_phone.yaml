@@ -12,7 +12,8 @@ views:
     type: sections
     max_columns: 1
     sections:
-      # Clock and current weather, then the wind. The headline flags a wind
+      # Clock with the next sunset (by day) or sunrise (at night) and current
+      # weather, then the wind. The headline flags a wind
       # change of 90 degrees or more (e.g. northerly to southerly) and the
       # 24 h peak; the chart below shows the next 24 h.
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
@@ -37,7 +38,8 @@ views:
               {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
-              ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }}
+              {%- set up = is_state('sun.sun', 'above_horizon') %}
+              ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
               <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**
               {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
               {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
@@ -422,8 +424,9 @@ views:
             grid_options:
               columns: full
 
-      # Live power per device, read-only. The heat pumps report energy only,
-      # so theirs is a 1 h average derived from their kWh counters.
+      # Live power per device, read-only. The EV charger is Evnex's metered
+      # power. The heat pumps report energy only, so theirs is a 1 h average
+      # derived from their kWh counters.
       - type: grid
         cards:
           - type: heading
@@ -432,17 +435,24 @@ views:
             icon: mdi:power-plug
           - &device
             type: tile
-            entity: sensor.living_room_heat_pump_power
-            name: Living room heat pump
-            icon: mdi:heat-pump
-            color: deep-orange
+            entity: sensor.garage_joris_home_charger_metered_power
+            name: EV charger
+            icon: mdi:ev-station
+            color: green
             tap_action:
               action: none
             grid_options:
               columns: 6
           - <<: *device
+            entity: sensor.living_room_heat_pump_power
+            name: Living room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *device
             entity: sensor.dining_room_heat_pump_power
             name: Dining room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
           - <<: *device
             entity: sensor.smart_plug_ordi_current_consumption
             name: Computer
@@ -518,6 +528,11 @@ views:
             name: Imported
             icon: mdi:transmission-tower-import
             color: brown
+          - <<: *today
+            entity: sensor.evnex_residential_nz_total_power_usage_today
+            name: EV charged
+            icon: mdi:ev-station
+            color: green
           - <<: *today
             entity: sensor.heat_pumps_today
             name: Heat pumps
