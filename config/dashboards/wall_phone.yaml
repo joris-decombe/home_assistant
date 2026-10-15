@@ -38,13 +38,14 @@ views:
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
               ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }}
-              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**<br>
+              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**
+              {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
               {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
           # Last 6 h (grey band, dashed: what the weather entity recorded) and
           # the next 24 h: a row of condition icons along the top every 3 h,
           # wind (blue, km/h, left axis) labelled with its direction,
-          # temperature (orange, °C, right axis) and rain as pale bars. Needs
+          # temperature (orange, °C, right axis) and rain as a pale blue band. Needs
           # the ApexCharts card (HACS); the labels read sensor.hourly_forecast
           # in the same order as the points.
           - type: custom:apexcharts-card
@@ -161,7 +162,7 @@ views:
               - id: rain
                 show: false
                 min: 0
-                max: 10
+                max: ~4
               - id: sky
                 show: false
                 min: 0
@@ -192,9 +193,11 @@ views:
               - entity: sensor.hourly_forecast
                 name: Rain
                 yaxis_id: rain
-                type: column
-                color: '#90caf9'
-                opacity: 0.7
+                type: area
+                curve: stepline
+                color: '#42a5f5'
+                opacity: 0.35
+                stroke_width: 0
                 unit: ' mm'
                 data_generator: |
                   return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
