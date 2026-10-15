@@ -16,7 +16,7 @@ browser ──HTTPS──▶ Cloudflare (Access) ──tunnel──▶ Cloudflar
 |---|---|
 | HA add-on | **Cloudflared** (`9074a9fa_cloudflared`, repo `github.com/brenner-tobias/ha-addons`): `external_hostname: home.dx2-66.com`, `tunnel_name: homeassistant`. Locally managed tunnel: on first start it logs a Cloudflare login URL; approving it for the `dx2-66.com` zone creates the tunnel and the `home` DNS record. |
 | HA HTTP settings | `use_x_forwarded_for: true`, `trusted_proxies: [172.30.33.0/24]` (the add-on network), `ip_ban_enabled: true`, `login_attempts_threshold: 5`. Since 2026, HA keeps these in `.storage/http` and **ignores an `http:` block in `configuration.yaml`** (it raises a repair issue). Change them through the `http/config/configure` websocket call, which stores them as *pending* and restarts. Then confirm with `http/config/promote` before `revert_at`, or HA reverts on its own. |
-| Cloudflare Zero Trust | Access application **Home Assistant** for `home.dx2-66.com`. Policy action **Allow**: *Include* Emails = the owner's email, *Require* Country = New Zealand, no *Exclude* rules. Sign-in is the Cloudflare account (security key), which is this Zero Trust org's identity provider. |
+| Cloudflare Zero Trust | Access application **Home Assistant** for `home.dx2-66.com`. Policy action **Allow**: *Include* Emails = the owner's email, *Require* Country = New Zealand, no *Exclude* rules. Sign-in is the Cloudflare account (security key), which is this Zero Trust org's identity provider. The app also enforces its own **MFA: biometrics or security key, every 24 h**. |
 
 ## Notes
 
