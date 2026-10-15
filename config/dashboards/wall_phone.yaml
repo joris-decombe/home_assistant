@@ -1,4 +1,6 @@
-# Wall-mounted phone (Samsung Galaxy S20, portrait) running Fully Kiosk Browser.
+# Wall-mounted phone (Samsung Galaxy S20, QHD+ 1440x3200 portrait) running
+# Fully Kiosk Browser. Android renders it at 4x, so the page sees a 360x800 CSS
+# viewport: the Home view is laid out to fit that without scrolling.
 # Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
 # Power figures are read-only; only heat pumps and lights are controllable.
@@ -9,11 +11,11 @@ views:
     icon: mdi:home
     type: sections
     max_columns: 1
-    dense_section_placement: true
     sections:
       - type: grid
         cards:
           - type: markdown
+            text_only: true
             grid_options:
               columns: full
             content: |
@@ -24,61 +26,56 @@ views:
         cards:
           - type: heading
             heading: Power
-            heading_style: title
+            heading_style: subtitle
             icon: mdi:flash
-          - type: markdown
+            tap_action:
+              action: navigate
+              navigation_path: /wall-phone/power
+          - &power
+            type: markdown
             grid_options:
               columns: 6
             content: |
               {% set w = states('sensor.alphaess_instantaneous_generation') | float(0) %}
-              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
               ☀️ Solar
-          - type: markdown
-            grid_options:
-              columns: 6
+              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+          - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_load') | float(0) %}
-              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
               🏠 Using
-          - type: markdown
-            grid_options:
-              columns: 6
+              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+          - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_battery_i_o') | float(0) %}
-              {% set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
-              ## {{ soc | round(0) | int }}%
-              🔋 {{ 'Discharging' if w > 20 else 'Charging' if w < -20 else 'Idle' }}{{ ' · %d W' | format(w | abs) if w | abs > 20 else '' }}
-          - type: markdown
-            grid_options:
-              columns: 6
+              🔋 {{ 'Discharging' if w > 20 else 'Charging' if w < -20 else 'Battery' }}
+              ## {{ states('sensor.alphaess_instantaneous_battery_soc') | float(0) | round(0) | int }}%
+          - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0) %}
+              ⚡ {{ 'Importing' if w > 20 else 'Exporting' if w < -20 else 'Grid' }}
               ## {{ '%.2f kW' | format(w | abs / 1000) if w | abs >= 1000 else '%d W' | format(w | abs) }}
-              ⚡ Grid{{ ' · importing' if w > 20 else ' · exporting' if w < -20 else '' }}
-          - type: power-sankey
-            layout: vertical
-            grid_options:
-              columns: full
 
       - type: grid
         cards:
           - type: heading
             heading: Heat pumps
-            heading_style: title
+            heading_style: subtitle
             icon: mdi:heat-pump
+          # One row each: icon toggles on/off, -/+ sets the target,
+          # tapping the name opens the full thermostat (modes, fan, swing).
           - &heat_pump
             type: tile
             entity: climate.living_room
             name: Living room
             state_content:
-              - hvac_action
+              - state
               - current_temperature
+            icon_tap_action:
+              action: toggle
             grid_options:
               columns: full
-            features_position: bottom
+            features_position: inline
             features:
-              - type: climate-hvac-modes
-                hvac_modes: [heat, cool, "off"]
               - type: target-temperature
           - <<: *heat_pump
             entity: climate.dining_room
@@ -91,16 +88,81 @@ views:
         cards:
           - type: heading
             heading: Lights
-            heading_style: title
+            heading_style: subtitle
             icon: mdi:lightbulb-group
           - type: tile
             entity: switch.lampe_salon
             name: Lampe salon
             icon: mdi:floor-lamp
             color: amber
-            vertical: true
             tap_action:
               action: toggle
             grid_options:
               columns: 6
-              rows: 2
+
+  - title: Power
+    path: power
+    icon: mdi:solar-power-variant
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Right now
+            heading_style: subtitle
+            icon: mdi:flash
+          - type: power-sankey
+            layout: vertical
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Last 24 hours
+            heading_style: subtitle
+            icon: mdi:chart-line
+          - type: history-graph
+            hours_to_show: 24
+            grid_options:
+              columns: full
+            entities:
+              - entity: sensor.alphaess_instantaneous_generation
+                name: Solar
+              - entity: sensor.alphaess_instantaneous_load
+                name: Using
+              - entity: sensor.alphaess_instantaneous_grid_i_o_total
+                name: Grid
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Today
+            heading_style: subtitle
+            icon: mdi:calendar-today
+          - &today
+            type: tile
+            entity: sensor.alphaess_daily_pv_generation
+            name: Generated
+            icon: mdi:solar-power
+            color: amber
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *today
+            entity: sensor.alphaess_total_load
+            name: Consumed
+            icon: mdi:home-lightning-bolt
+            color: blue
+          - <<: *today
+            entity: sensor.alphaess_daily_feed_in
+            name: Exported
+            icon: mdi:transmission-tower-export
+            color: purple
+          - <<: *today
+            entity: sensor.alphaess_daily_grid_consumption
+            name: Imported
+            icon: mdi:transmission-tower-import
+            color: brown
