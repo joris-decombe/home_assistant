@@ -1,6 +1,7 @@
-# Wall-phone dashboard helpers. Loaded as a package: configuration.yaml on the
-# Pi has `homeassistant: packages: !include_dir_named packages`. Copy this file
-# to /config/packages/ and restart (or reload template entities).
+# Wall-phone dashboard helpers: the hourly forecast sensor and the ceiling
+# lights' Off / Night / Full control. Loaded as a package: configuration.yaml
+# on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
+# this file to /config/packages/ and reload template entities.
 
 template:
   # The next 24 hours of met.no forecast, trimmed to what the wind strip on the
@@ -38,3 +39,46 @@ template:
               }] %}
             {% endfor %}
             {{ ns.out }}
+
+  # Ceiling lights as one Off / Night / Full control for the wall phone. Each
+  # Yeelight ceiling light has a Day (main light) and Night (moonlight)
+  # effect; the Xiaomi light group doesn't expose them, so this drives both
+  # lights directly. The state is read back from the lights, so it stays
+  # right when they're switched from the wall or the app.
+  - select:
+      - name: Ceiling lights
+        unique_id: wall_phone_ceiling_lights_mode
+        icon: mdi:ceiling-light-multiple
+        options: "{{ ['Off', 'Night', 'Full'] }}"
+        state: >
+          {% set on = ['light.yeelink_sg_594287415_ceiling22_s_2_light',
+                       'light.yeelink_sg_594289920_ceiling22_s_2_light']
+                      | select('is_state', 'on') | list %}
+          {% if not on %}Off
+          {% elif on | map('state_attr', 'effect') | select('eq', 'Night') | list | count == on | count %}Night
+          {% else %}Full{% endif %}
+        select_option:
+          - variables:
+              lights:
+                - light.yeelink_sg_594287415_ceiling22_s_2_light
+                - light.yeelink_sg_594289920_ceiling22_s_2_light
+          - choose:
+              - conditions: "{{ option == 'Off' }}"
+                sequence:
+                  - action: light.turn_off
+                    target:
+                      entity_id: "{{ lights }}"
+              - conditions: "{{ option == 'Night' }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ lights }}"
+                    data:
+                      effect: Night
+            default:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ lights }}"
+                data:
+                  effect: Day
+                  brightness_pct: 100

@@ -332,20 +332,30 @@ views:
             name: Hall
           # Lights: tap toggles, hold opens brightness / colour temperature.
           # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
-          - &light
-            type: tile
-            entity: light.mijia_sg_group_2088180360420671488_group3_s_2_light
+          # Off / Night (moonlight) / Full for both ceiling lights, from
+          # select.ceiling_lights (config/packages/wall_phone.yaml).
+          - type: tile
+            entity: select.ceiling_lights
             name: Ceiling lights
             icon: mdi:ceiling-light-multiple
+            color: amber
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+            features_position: inline
+            features:
+              - type: select-options
+          - &light
+            type: tile
+            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
+            name: Bedside lamp
+            icon: mdi:lamp
             color: amber
             tap_action:
               action: toggle
             grid_options:
               columns: 6
-          - <<: *light
-            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
-            name: Bedside lamp
-            icon: mdi:lamp
           - <<: *light
             entity: light.yeelink_sg_647181221_bslamp2_s_2_light
             name: Jodie's lamp
