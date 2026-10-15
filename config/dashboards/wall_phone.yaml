@@ -294,7 +294,8 @@ views:
             icon: mdi:transmission-tower
 
       # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
-      # the full thermostat (modes, fan, swing). Then lights and the bedroom.
+      # the full thermostat (modes, fan, swing). Then lights, Jodie's room
+      # and the vacuum (tap for start / return to dock).
       - type: grid
         cards:
           - type: heading
@@ -329,24 +330,44 @@ views:
           - <<: *heat_pump
             entity: climate.hall
             name: Hall
-          - type: tile
-            entity: switch.lampe_salon
-            name: Lampe salon
-            icon: mdi:floor-lamp
+          # Lights: tap toggles, hold opens brightness / colour temperature.
+          # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
+          - &light
+            type: tile
+            entity: light.mijia_sg_group_2088180360420671488_group3_s_2_light
+            name: Ceiling lights
+            icon: mdi:ceiling-light-multiple
             color: amber
             tap_action:
               action: toggle
             grid_options:
               columns: 6
+          - <<: *light
+            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
+            name: Bedside lamp
+            icon: mdi:lamp
+          - <<: *light
+            entity: light.yeelink_sg_647181221_bslamp2_s_2_light
+            name: Jodie's lamp
+            icon: mdi:lamp
+          - <<: *light
+            entity: switch.lampe_salon
+            name: Lampe salon
+            icon: mdi:floor-lamp
           - type: tile
-            entity: sensor.cleargras_cn_blt_3_vopvdcqc4800_dk1_temperature_p_2_1
+            entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
             name: Jodie's room
             icon: mdi:bed
             color: teal
-            state_content:
-              - state
             tap_action:
               action: none
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: vacuum.rockrobo_sg_64457686_v1
+            name: Vacuum
+            icon: mdi:robot-vacuum
+            color: green
             grid_options:
               columns: 6
 
