@@ -8,6 +8,6 @@ services:
     restart: unless-stopped
     privileged: true
     ports:
-      - "8124:8123"
+      - "8124:8124"
     environment:
-      - TZ=Europe/Amsterdam
+      - TZ=Pacific/Auckland
