@@ -4,7 +4,7 @@
 Usage:
     uv run --with pyyaml --with websockets scripts/push_dashboard.py [YAML_FILE] [URL_PATH]
 
-YAML_FILE defaults to config/dashboards/smart_home.yaml. URL_PATH names the
+YAML_FILE defaults to config/dashboards/overview.yaml. URL_PATH names the
 dashboard to overwrite (e.g. wall-phone); it is created if missing. Without
 URL_PATH the default Overview dashboard is overwritten.
 """
@@ -81,6 +81,6 @@ async def push_dashboard(dashboard_path, url_path):
 
 
 if __name__ == "__main__":
-    default = Path(__file__).parent.parent / "config" / "dashboards" / "smart_home.yaml"
+    default = Path(__file__).parent.parent / "config" / "dashboards" / "overview.yaml"
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else default
     asyncio.run(push_dashboard(path, sys.argv[2] if len(sys.argv) > 2 else None))

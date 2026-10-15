@@ -35,3 +35,23 @@ browser ──HTTPS──▶ Cloudflare (Access) ──tunnel──▶ Cloudflar
   as a proxy. HA's log says "not set-up for reverse proxies" or "untrusted
   proxy", followed by the address it saw.
 - The add-on uses about 30–50 MB of RAM, which matters on the 1 GB Pi 3.
+
+## Claude Code MCP over HTTPS
+
+Claude Code talks to HA's built-in **Model Context Protocol Server** integration
+(`mcp_server`, "All LLM APIs") at `https://home.dx2-66.com/api/mcp`. It only sees
+entities exposed to Assist (Settings → Voice assistants → Expose).
+
+- A second Access application, **Home Assistant MCP**, covers only
+  `home.dx2-66.com/api/mcp`. Cloudflare uses the most specific path match, so it
+  wins over the main app. Its only policy is **Service Auth** for the service
+  token `claude-code`, with **no MFA** (a service token can't do MFA). On the
+  main app, the app-wide MFA requirement made the token fail with a 403.
+- Claude Code (local scope, stored in `~/.claude.json`, not in the repo):
+  ```bash
+  claude mcp add --transport http --scope local homeassistant https://home.dx2-66.com/api/mcp --header "Authorization: Bearer <HA token>" --header "CF-Access-Client-Id: <id>" --header "CF-Access-Client-Secret: <secret>"
+  ```
+- Troubleshooting: a 403 page from Cloudflare Access names the matched app's
+  `App AUD`, which shows which app handled the request. Error 1033 means the
+  tunnel or the Pi is down. Error 1010 means a client with no browser-like
+  User-Agent was blocked.

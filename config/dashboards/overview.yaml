@@ -1,0 +1,1106 @@
+# Main "Overview" dashboard (default, storage mode). This file is the source
+# of truth; push it with:
+#   scripts/push_dashboard.py config/dashboards/overview.yaml   (no url_path = Overview)
+# The Home view's clock/wind headline and ApexCharts forecast are copied from
+# wall_phone.yaml (chart taller here): change them there first, then copy across.
+title: Smart Home Control
+views:
+- title: Home
+  path: home
+  icon: mdi:home
+  type: sections
+  max_columns: 4
+  dense_section_placement: true
+  sections:
+  - type: grid
+    column_span: 2
+    cards:
+    - type: markdown
+      text_only: true
+      grid_options:
+        columns: full
+      content: |
+        {%- set fc = state_attr('sensor.hourly_forecast', 'forecast') or [] %}
+        {%- set dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] %}
+        {%- set arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'] %}
+        {%- set icons = {'clear-night': 'weather-night', 'cloudy': 'weather-cloudy', 'exceptional': 'alert-circle-outline', 'fog': 'weather-fog', 'hail': 'weather-hail', 'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'partlycloudy': 'weather-partly-cloudy', 'pouring': 'weather-pouring', 'rainy': 'weather-rainy', 'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'sunny': 'weather-sunny', 'windy': 'weather-windy', 'windy-variant': 'weather-windy-variant'} %}
+        {%- macro sector(b) %}{{ ((b | float(0) + 22.5) // 45) | int % 8 }}{% endmacro %}
+        {%- macro when(dt) %}{% set l = dt | as_datetime | as_local %}{{ l.strftime('%H:%M') if l.date() == now().date() else l.strftime('%a %H:%M') }}{% endmacro %}
+        {%- set w = states.weather.forecast_home.attributes %}
+        {%- set i0 = sector(w.wind_bearing) | int %}
+        {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
+        {%- for f in fc %}
+        {%- set d = (sector(f.wind_bearing) | int - i0) % 8 %}
+        {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
+        {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
+        {%- endfor %}
+        {%- set up = is_state('sun.sun', 'above_horizon') %}
+        ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
+        <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**
+        {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
+        {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
+        {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
+    - type: custom:apexcharts-card
+      graph_span: 30h
+      span:
+        start: hour
+        offset: -6h
+      now:
+        show: true
+        color: '#9e9e9e'
+      header:
+        show: false
+      grid_options:
+        columns: full
+      apex_config:
+        chart:
+          height: 230
+          parentHeightOffset: 0
+        legend:
+          show: false
+        title:
+          text: km/h
+          align: left
+          offsetX: 4
+          style:
+            fontSize: 11px
+            fontWeight: 500
+            color: '#1e88e5'
+        subtitle:
+          text: °C
+          align: right
+          offsetX: -4
+          offsetY: 0
+          style:
+            fontSize: 11px
+            fontWeight: 500
+            color: '#fb8c00'
+        tooltip:
+          enabled: false
+        grid:
+          borderColor: rgba(127, 127, 127, 0.2)
+          strokeDashArray: 3
+          padding:
+            left: 6
+            right: 14
+            top: -14
+            bottom: -4
+        xaxis:
+          axisBorder:
+            show: false
+          axisTicks:
+            show: false
+          labels:
+            format: HH:mm
+            style:
+              colors: var(--secondary-text-color)
+        fill:
+          type:
+          - gradient
+          - solid
+          - solid
+          - solid
+          - solid
+          - solid
+          - solid
+          gradient:
+            shadeIntensity: 0
+            opacityFrom: 0.35
+            opacityTo: 0.02
+            stops:
+            - 0
+            - 100
+        dataLabels:
+          enabledOnSeries:
+          - 0
+          - 3
+          background:
+            enabled: false
+          offsetY: -8
+          style:
+            fontSize: 12px
+            fontWeight: 600
+            colors:
+            - '#1565c0'
+            - '#000'
+            - '#000'
+            - '#000'
+          formatter: |
+            EVAL:function (val, opts) {
+              const i = opts.dataPointIndex;
+              if (i % 3 !== 0) return '';
+              const hass = document.querySelector('home-assistant').hass;
+              const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
+              if (!f) return '';
+              if (opts.seriesIndex === 3) return {
+                'clear-night': '🌙', 'cloudy': '☁️', 'exceptional': '⚠️', 'fog': '🌫️',
+                'hail': '🌨️', 'lightning': '🌩️', 'lightning-rainy': '⛈️',
+                'partlycloudy': '⛅', 'pouring': '☔', 'rainy': '🌧️', 'snowy': '❄️',
+                'snowy-rainy': '🌨️', 'sunny': '☀️', 'windy': '🌬️', 'windy-variant': '🌬️',
+              }[f.condition] || '';
+              const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
+              return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
+            }
+      yaxis:
+      - id: wind
+        min: 0
+        max: ~100
+        apex_config:
+          tickAmount: 5
+          labels:
+            style:
+              colors: '#1e88e5'
+            formatter: |
+              EVAL:function (v) { return Math.round(v); }
+      - id: temp
+        opposite: true
+        min: ~0
+        max: ~25
+        apex_config:
+          tickAmount: 5
+          labels:
+            style:
+              colors: '#fb8c00'
+            formatter: |
+              EVAL:function (v) { return Math.round(v); }
+      - id: rain
+        show: false
+        min: 0
+        max: ~4
+      - id: sky
+        show: false
+        min: 0
+        max: 1
+      series:
+      - entity: sensor.hourly_forecast
+        name: Wind
+        yaxis_id: wind
+        type: area
+        color: '#1e88e5'
+        curve: smooth
+        stroke_width: 2.5
+        unit: ' km/h'
+        show:
+          datalabels: true
+        data_generator: |
+          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+      - entity: sensor.hourly_forecast
+        name: Temperature
+        yaxis_id: temp
+        type: line
+        color: '#fb8c00'
+        curve: smooth
+        stroke_width: 2
+        unit: ' °C'
+        data_generator: |
+          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+      - entity: sensor.hourly_forecast
+        name: Rain
+        yaxis_id: rain
+        type: area
+        curve: stepline
+        color: '#42a5f5'
+        opacity: 0.35
+        stroke_width: 0
+        unit: ' mm'
+        data_generator: |
+          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+      - entity: sensor.hourly_forecast
+        name: Sky
+        yaxis_id: sky
+        type: line
+        color: transparent
+        stroke_width: 0
+        show:
+          datalabels: true
+        data_generator: |
+          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
+      - entity: weather.forecast_home
+        attribute: wind_speed
+        name: Wind so far
+        yaxis_id: wind
+        type: line
+        color: '#1e88e5'
+        curve: smooth
+        stroke_width: 2
+        stroke_dash: 4
+        extend_to: now
+      - entity: weather.forecast_home
+        attribute: temperature
+        name: Temperature so far
+        yaxis_id: temp
+        type: line
+        color: '#fb8c00'
+        curve: smooth
+        stroke_width: 2
+        stroke_dash: 4
+        extend_to: now
+      - entity: sensor.hourly_forecast
+        name: Past
+        yaxis_id: sky
+        type: area
+        color: '#9e9e9e'
+        opacity: 0.12
+        stroke_width: 0
+        curve: stepline
+        extend_to: false
+        data_generator: |
+          return [[start.getTime(), 1], [new Date().getTime(), 1]];
+  - type: grid
+    cards:
+    - type: heading
+      heading: Power
+      heading_style: subtitle
+      icon: mdi:flash
+      tap_action:
+        action: navigate
+        navigation_path: /lovelace/energy
+      badges:
+      - type: entity
+        entity: sensor.alphaess_daily_pv_generation
+        icon: mdi:solar-power
+        color: amber
+        tap_action: &id001
+          action: none
+      - type: entity
+        entity: sensor.alphaess_self_sufficiency
+        icon: mdi:home-battery
+        color: green
+        tap_action: *id001
+    - type: sensor
+      entity: sensor.alphaess_instantaneous_generation
+      name: Solar
+      icon: mdi:solar-power-variant
+      graph: line
+      hours_to_show: 24
+      detail: 1
+      grid_options: &id002
+        columns: 6
+        rows: 2
+    - type: sensor
+      entity: sensor.alphaess_instantaneous_load
+      name: Using
+      icon: mdi:home-lightning-bolt
+      graph: line
+      hours_to_show: 24
+      detail: 1
+      grid_options: *id002
+    - type: sensor
+      entity: sensor.alphaess_instantaneous_battery_soc
+      name: Battery
+      icon: mdi:battery-charging-50
+      graph: line
+      hours_to_show: 24
+      detail: 1
+      grid_options: *id002
+    - type: sensor
+      entity: sensor.alphaess_instantaneous_grid_i_o_total
+      name: Grid
+      icon: mdi:transmission-tower
+      graph: line
+      hours_to_show: 24
+      detail: 1
+      grid_options: *id002
+  - type: grid
+    cards:
+    - type: heading
+      heading: Heat pumps
+      heading_style: subtitle
+      icon: mdi:heat-pump
+      badges:
+      - type: entity
+        entity: sensor.heat_pumps_today
+        icon: mdi:heat-pump
+        color: deep-orange
+        tap_action: &id003
+          action: none
+      - type: entity
+        entity: sensor.living_room_measured_outdoor_air_temperature
+        name: Outside
+        icon: mdi:thermometer
+        show_name: true
+        tap_action: *id003
+    - type: tile
+      entity: climate.living_room
+      name: Living room
+      state_content:
+      - state
+      - current_temperature
+      grid_options:
+        columns: full
+      features_position: bottom
+      features:
+      - type: climate-hvac-modes
+        hvac_modes:
+        - heat
+        - cool
+        - dry
+        - fan_only
+        - 'off'
+      - type: target-temperature
+    - type: tile
+      entity: climate.dining_room
+      name: Dining room
+      state_content:
+      - state
+      - current_temperature
+      grid_options:
+        columns: full
+      features_position: bottom
+      features:
+      - type: climate-hvac-modes
+        hvac_modes:
+        - heat
+        - cool
+        - dry
+        - fan_only
+        - 'off'
+      - type: target-temperature
+    - type: tile
+      entity: climate.hall
+      name: Hall
+      state_content:
+      - state
+      - current_temperature
+      grid_options:
+        columns: full
+      features_position: bottom
+      features:
+      - type: climate-hvac-modes
+        hvac_modes:
+        - heat
+        - cool
+        - dry
+        - fan_only
+        - 'off'
+      - type: target-temperature
+  - type: grid
+    cards:
+    - type: heading
+      heading: Lights
+      heading_style: subtitle
+      icon: mdi:lightbulb-group
+    - type: tile
+      entity: select.ceiling_lights
+      name: Ceiling lights
+      color: amber
+      tap_action:
+        action: perform-action
+        perform_action: script.ceiling_lights_toggle
+      grid_options:
+        columns: full
+      features_position: inline
+      features:
+      - type: select-options
+    - type: tile
+      entity: light.yeelink_sg_270878066_bslamp2_s_2_light
+      name: Bedside lamp
+      icon: mdi:lamp
+      color: amber
+      grid_options:
+        columns: 6
+      features:
+      - type: light-brightness
+    - type: tile
+      entity: light.yeelink_sg_647181221_bslamp2_s_2_light
+      name: Jodie's lamp
+      icon: mdi:lamp
+      color: amber
+      grid_options:
+        columns: 6
+      features:
+      - type: light-brightness
+    - type: tile
+      entity: switch.lampe_salon
+      name: Lampe salon
+      icon: mdi:floor-lamp
+      color: amber
+      tap_action:
+        action: toggle
+      grid_options:
+        columns: 6
+  - type: grid
+    cards:
+    - type: heading
+      heading: Rooms
+      heading_style: subtitle
+      icon: mdi:home-thermometer
+    - type: tile
+      entity: sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_temperature_p_2_1
+      name: Living room
+      icon: mdi:sofa
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.dining_room_measured_value_of_room_temperature
+      name: Dining room
+      icon: mdi:silverware-fork-knife
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.hall_measured_value_of_room_temperature
+      name: Hall
+      icon: mdi:door
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_temperature_p_2_1
+      name: Bedroom
+      icon: mdi:bed-king
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
+      name: Jodie's room
+      icon: mdi:bed
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.living_room_measured_outdoor_air_temperature
+      name: Outside
+      icon: mdi:tree
+      color: teal
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_relative_humidity_p_2_2
+      name: Living room humidity
+      icon: mdi:water-percent
+      color: blue
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_relative_humidity_p_2_2
+      name: Bedroom humidity
+      icon: mdi:water-percent
+      color: blue
+      grid_options:
+        columns: 4
+    - type: tile
+      entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_relative_humidity_p_2_2
+      name: Jodie's room humidity
+      icon: mdi:water-percent
+      color: blue
+      grid_options:
+        columns: 4
+  - type: grid
+    cards:
+    - type: heading
+      heading: Vacuum
+      heading_style: subtitle
+      icon: mdi:robot-vacuum
+    - type: tile
+      entity: vacuum.rockrobo_sg_64457686_v1
+      name: Vacuum
+      icon: mdi:robot-vacuum
+      color: green
+      grid_options:
+        columns: full
+      features:
+      - type: vacuum-commands
+        commands:
+        - start_pause
+        - stop
+        - return_home
+    - type: tile
+      entity: number.rockrobo_sg_64457686_v1_speed_level_p_2_2
+      name: Suction
+      icon: mdi:fan
+      color: green
+      grid_options:
+        columns: 6
+      features:
+      - type: numeric-input
+        style: slider
+    - type: tile
+      entity: sensor.rockrobo_sg_64457686_v1_battery_level_p_3_1
+      name: Battery
+      icon: mdi:battery
+      color: green
+      grid_options:
+        columns: 6
+  - type: grid
+    cards:
+    - type: heading
+      heading: EV charger
+      heading_style: subtitle
+      icon: mdi:ev-station
+      badges:
+      - type: entity
+        entity: binary_sensor.garage_joris_home_charger_plugged_in
+        name: Plugged in
+        show_name: true
+        tap_action: *id003
+      - type: entity
+        entity: sensor.garage_joris_home_charger_connector_status
+        tap_action: *id003
+    - type: tile
+      entity: sensor.garage_joris_home_charger_metered_power
+      name: Power
+      icon: mdi:flash
+      color: green
+      grid_options:
+        columns: 6
+      tap_action: *id003
+    - type: tile
+      entity: sensor.garage_joris_home_charger_session_energy_added
+      name: This session
+      icon: mdi:battery-charging
+      color: green
+      grid_options:
+        columns: 6
+      tap_action: *id003
+    - type: tile
+      entity: switch.garage_joris_home_charger_charge_now
+      name: Charge now
+      icon: mdi:lightning-bolt
+      color: green
+      grid_options:
+        columns: 6
+      tap_action:
+        action: toggle
+    - type: tile
+      entity: number.garage_joris_home_charger_connector_1_maximum_current
+      name: Max current
+      icon: mdi:current-ac
+      color: green
+      grid_options:
+        columns: 6
+      features:
+      - type: numeric-input
+        style: buttons
+  - type: grid
+    cards:
+    - type: heading
+      heading: People & lists
+      heading_style: subtitle
+      icon: mdi:account-group
+    - type: entities
+      title: People
+      icon: mdi:account-group
+      entities:
+      - entity: person.joris
+        name: Joris
+    - type: todo-list
+      entity: todo.shopping_list
+      title: Shopping List
+- title: Energy
+  path: energy
+  icon: mdi:solar-power-variant
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Now
+      heading_style: title
+      icon: mdi:flash
+      badges:
+      - type: entity
+        entity: sensor.alphaess_ems_status
+        show_icon: false
+        tap_action:
+          action: none
+    - type: markdown
+      grid_options:
+        columns: 6
+      content: |
+        {% set w = states('sensor.alphaess_instantaneous_generation') | float(0) %}
+        ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+        ☀️ Solar
+    - type: markdown
+      grid_options:
+        columns: 6
+      content: |
+        {% set w = states('sensor.alphaess_instantaneous_load') | float(0) %}
+        ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+        🏠 Load
+    - type: markdown
+      grid_options:
+        columns: 6
+      content: |
+        {% set w = states('sensor.alphaess_instantaneous_battery_i_o') | float(0) %}
+        {% set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
+        ## {{ '%.2f kW' | format(w | abs / 1000) if w | abs >= 1000 else '%d W' | format(w | abs) }}
+        🔋 {{ 'Discharging' if w > 20 else 'Charging' if w < -20 else 'Idle' }} · **{{ soc | round(0) | int }}%**
+    - type: markdown
+      grid_options:
+        columns: 6
+      content: |
+        {% set w = states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0) %}
+        ## {{ '%.2f kW' | format(w | abs / 1000) if w | abs >= 1000 else '%d W' | format(w | abs) }}
+        ⚡ Grid{{ ' · importing' if w > 20 else ' · exporting' if w < -20 else '' }}
+    - type: power-sankey
+      layout: horizontal
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: Devices now
+      heading_style: subtitle
+      icon: mdi:power-plug
+    - type: tile
+      entity: sensor.garage_joris_home_charger_metered_power
+      name: EV charger
+      icon: mdi:ev-station
+      color: green
+      tap_action: &id004
+        action: none
+      grid_options: &id005
+        columns: 6
+    - type: tile
+      entity: sensor.living_room_heat_pump_power
+      name: Living room heat pump
+      icon: mdi:heat-pump
+      color: deep-orange
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.dining_room_heat_pump_power
+      name: Dining room heat pump
+      icon: mdi:heat-pump
+      color: deep-orange
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.smart_plug_ordi_current_consumption
+      name: Computer
+      icon: mdi:desktop-tower-monitor
+      color: blue
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.smart_plug_tv_current_consumption
+      name: TV
+      icon: mdi:television
+      color: blue
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.lampe_salon_current_consumption
+      name: Lampe salon
+      icon: mdi:floor-lamp
+      color: amber
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.aquarium_light_current_consumption
+      name: Aquarium light
+      icon: mdi:lightbulb
+      color: amber
+      tap_action: *id004
+      grid_options: *id005
+    - type: tile
+      entity: sensor.aquarium_pump_current_consumption
+      name: Aquarium pump
+      icon: mdi:pump
+      color: teal
+      tap_action: *id004
+      grid_options: *id005
+  - type: grid
+    cards:
+    - type: heading
+      heading: Today
+      heading_style: title
+      icon: mdi:calendar-today
+    - type: tile
+      entity: sensor.alphaess_total_load
+      name: Consumed
+      icon: mdi:home-lightning-bolt
+      color: blue
+    - type: tile
+      entity: sensor.alphaess_daily_pv_generation
+      name: Generated
+      icon: mdi:solar-power
+      color: amber
+    - type: tile
+      entity: sensor.alphaess_daily_battery_discharge
+      name: Discharged
+      icon: mdi:battery-arrow-down
+      color: teal
+    - type: tile
+      entity: sensor.alphaess_daily_battery_charge
+      name: Charged
+      icon: mdi:battery-arrow-up
+      color: green
+    - type: tile
+      entity: sensor.alphaess_daily_feed_in
+      name: Exported
+      icon: mdi:transmission-tower-export
+      color: purple
+    - type: tile
+      entity: sensor.alphaess_daily_grid_consumption
+      name: Imported
+      icon: mdi:transmission-tower-import
+      color: brown
+  - type: grid
+    cards:
+    - type: heading
+      heading: Energy balance
+      heading_style: title
+      icon: mdi:transit-connection-variant
+    - type: energy-date-selection
+      grid_options:
+        columns: full
+    - type: energy-sankey
+      layout: horizontal
+      grid_options:
+        columns: full
+  - type: grid
+    column_span: 2
+    cards:
+    - type: heading
+      heading: Time trend
+      heading_style: title
+      icon: mdi:chart-line
+    - type: history-graph
+      hours_to_show: 24
+      grid_options:
+        columns: full
+      entities:
+      - entity: sensor.alphaess_instantaneous_load
+        name: Load
+      - entity: sensor.alphaess_instantaneous_generation
+        name: Solar
+      - entity: sensor.alphaess_instantaneous_grid_i_o_total
+        name: Grid
+      - entity: sensor.alphaess_instantaneous_battery_soc
+        name: Battery
+  - type: grid
+    cards:
+    - type: heading
+      heading: Battery settings
+      heading_style: title
+      icon: mdi:battery-charging
+    - type: entities
+      show_header_toggle: false
+      entities:
+      - entity: sensor.alphaess_ems_status
+        name: EMS Status
+      - entity: sensor.alphaess_current_capacity
+        name: Stored Energy
+      - entity: number.alphaess_bathighcap
+        name: Max Charge Level
+        type: simple-entity
+        tap_action:
+          action: none
+      - entity: number.alphaess_batusecap
+        name: Discharge Cutoff
+        type: simple-entity
+        tap_action:
+          action: none
+      - entity: switch.alphaess_grid_charge_enabled
+        name: Grid Charging
+        type: simple-entity
+        tap_action:
+          action: none
+      - entity: switch.alphaess_discharge_time_control_enabled
+        name: Discharge Time Control
+        type: simple-entity
+        tap_action:
+          action: none
+- title: Security
+  path: security
+  icon: mdi:cctv
+  badges: []
+  cards:
+  - type: markdown
+    content: Live video for the Tapo C420 battery cameras is only available in the Tapo app; they expose
+      no local stream to Home Assistant.
+  - type: entities
+    title: Front Door Camera
+    icon: mdi:cctv
+    show_header_toggle: false
+    entities:
+    - entity: switch.camera_front_door_camera_front_door
+      name: Camera
+    - entity: switch.camera_front_door_motion_detection
+      name: Motion Detection
+    - entity: switch.camera_front_door_person_detection
+      name: Person Detection
+    - entity: switch.camera_front_door_led
+      name: Status LED
+    - entity: sensor.camera_front_door_battery
+      name: Battery
+  - type: entities
+    title: Garage Camera
+    icon: mdi:cctv
+    show_header_toggle: false
+    entities:
+    - entity: switch.camera_garage_camera_garage
+      name: Camera
+    - entity: switch.camera_garage_motion_detection
+      name: Motion Detection
+    - entity: switch.camera_garage_person_detection
+      name: Person Detection
+    - entity: switch.camera_garage_led
+      name: Status LED
+    - entity: sensor.camera_garage_battery
+      name: Battery
+  - type: entities
+    title: Hubs & Sirens
+    icon: mdi:alarm-light
+    show_header_toggle: false
+    entities:
+    - entity: siren.tapo_hub_maison
+      name: House Siren
+    - entity: select.tapo_hub_maison_alarm_sound
+      name: House Alarm Sound
+    - entity: siren.tapo_hub_garage
+      name: Garage Siren
+    - entity: select.tapo_hub_garage_alarm_sound
+      name: Garage Alarm Sound
+- title: Plugs
+  path: plugs
+  icon: mdi:power-socket
+  badges: []
+  cards:
+  - type: entities
+    title: Smart Plugs
+    icon: mdi:power-socket
+    show_header_toggle: false
+    entities:
+    - entity: switch.lampe_salon
+      name: Lampe Salon
+      secondary_info: last-changed
+    - entity: switch.smart_plug_ordi
+      name: Computer
+      secondary_info: last-changed
+    - switch.smart_plug_tv
+  - type: glance
+    title: Aquarium
+    entities:
+    - entity: switch.aquarium_pump
+      name: Pump
+    - entity: sensor.aquarium_pump_current_consumption
+      name: Power
+    - entity: sensor.aquarium_pump_today_s_consumption
+      name: Today
+    - switch.aquarium_light
+  - type: glance
+    title: Power Now
+    entities:
+    - entity: sensor.lampe_salon_current_consumption
+      name: Lampe
+    - entity: sensor.smart_plug_ordi_current_consumption
+      name: Computer
+    - entity: sensor.aquarium_pump_current_consumption
+      name: Aquarium
+    - sensor.smart_plug_tv_current_consumption
+    - sensor.aquarium_light_current_consumption
+  - type: entities
+    title: Energy This Month
+    icon: mdi:lightning-bolt
+    entities:
+    - entity: sensor.lampe_salon_this_month_s_consumption
+      name: Lampe Salon
+    - entity: sensor.smart_plug_ordi_this_month_s_consumption
+      name: Computer
+    - entity: sensor.aquarium_pump_this_month_s_consumption
+      name: Aquarium Pump
+    - sensor.smart_plug_tv_this_month_s_consumption
+    - sensor.aquarium_light_this_month_s_consumption
+  - type: history-graph
+    title: Plug Power (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.lampe_salon_current_consumption
+      name: Lampe
+    - entity: sensor.smart_plug_ordi_current_consumption
+      name: Computer
+    - entity: sensor.aquarium_pump_current_consumption
+      name: Aquarium
+    - sensor.smart_plug_tv_current_consumption
+    - sensor.aquarium_light_current_consumption
+- title: Media
+  path: media
+  icon: mdi:play-circle
+  badges: []
+  cards:
+  - type: media-control
+    entity: media_player.sony_xr_55x90k
+  - type: media-control
+    entity: media_player.tv_room
+  - type: media-control
+    entity: media_player.dining_room
+  - type: media-control
+    entity: media_player.hallway
+- title: Sonos
+  path: sonos
+  icon: mdi:speaker-group
+  badges: []
+  cards:
+  - type: entities
+    title: TV Room Surround
+    icon: mdi:surround-sound
+    show_header_toggle: false
+    entities:
+    - entity: media_player.tv_room
+      name: TV Room Speaker
+    - entity: binary_sensor.tv_room_microphone
+      name: Microphone
+    - entity: sensor.tv_room_audio_input_format
+      name: Audio Format
+    - type: divider
+    - entity: number.tv_room_bass
+      name: Bass
+    - entity: number.tv_room_treble
+      name: Treble
+    - entity: number.tv_room_balance
+      name: Balance
+    - entity: number.tv_room_sub_gain
+      name: Sub Gain
+    - entity: number.tv_room_surround_level
+      name: Surround Level
+    - entity: number.tv_room_music_surround_level
+      name: Music Surround Level
+    - entity: number.tv_room_audio_delay
+      name: Audio Delay
+    - type: divider
+    - entity: switch.tv_room_surround_enabled
+      name: Surround
+    - entity: switch.tv_room_subwoofer_enabled
+      name: Subwoofer
+    - entity: switch.tv_room_night_sound
+      name: Night Sound
+    - entity: switch.tv_room_speech_enhancement
+      name: Speech Enhancement
+    - entity: switch.tv_room_surround_music_full_volume
+      name: Music Full Volume
+    - entity: switch.tv_room_loudness
+      name: Loudness
+    - entity: switch.tv_room_crossfade
+      name: Crossfade
+  - type: entities
+    title: Dining Room
+    icon: mdi:speaker
+    show_header_toggle: false
+    entities:
+    - entity: media_player.dining_room
+      name: Speaker
+    - type: divider
+    - entity: number.dining_room_bass
+      name: Bass
+    - entity: number.dining_room_treble
+      name: Treble
+    - entity: number.dining_room_balance
+      name: Balance
+    - entity: switch.dining_room_loudness
+      name: Loudness
+    - entity: switch.dining_room_crossfade
+      name: Crossfade
+  - type: entities
+    title: Hallway
+    icon: mdi:speaker
+    show_header_toggle: false
+    entities:
+    - entity: media_player.hallway
+      name: Speaker
+    - type: divider
+    - entity: number.hallway_bass
+      name: Bass
+    - entity: number.hallway_treble
+      name: Treble
+    - entity: number.hallway_balance
+      name: Balance
+    - entity: switch.hallway_loudness
+      name: Loudness
+    - entity: switch.hallway_crossfade
+      name: Crossfade
+- title: Printer
+  path: printer
+  icon: mdi:printer
+  badges: []
+  cards:
+  - type: entities
+    title: HP ENVY 5000
+    icon: mdi:printer
+    entities:
+    - entity: sensor.hp_envy_5000_series
+      name: Status
+    - entity: sensor.hp_envy_5000_series_black_ink
+      name: Black Ink
+      icon: mdi:water
+    - entity: sensor.hp_envy_5000_series_tri_color_ink
+      name: Tri-Color Ink
+      icon: mdi:palette
+  - type: gauge
+    entity: sensor.hp_envy_5000_series_black_ink
+    name: Black Ink Level
+    min: 0
+    max: 100
+    severity:
+      green: 50
+      yellow: 20
+      red: 5
+  - type: gauge
+    entity: sensor.hp_envy_5000_series_tri_color_ink
+    name: Tri-Color Ink Level
+    min: 0
+    max: 100
+    severity:
+      green: 50
+      yellow: 20
+      red: 5
+- title: System
+  path: system
+  icon: mdi:cog
+  badges: []
+  cards:
+  - type: entities
+    title: Updates
+    icon: mdi:update
+    entities:
+    - entity: update.home_assistant_core_update
+      name: HA Core
+    - entity: update.home_assistant_operating_system_update
+      name: HA OS
+    - entity: update.home_assistant_supervisor_update
+      name: HA Supervisor
+    - entity: update.matter_server_update
+      name: Matter Server
+    - entity: update.terminal_ssh_update
+      name: Terminal & SSH
+    - entity: update.hacs_update
+      name: HACS
+    - entity: update.alphaess_energy_storage_system_update
+      name: AlphaESS
+    - entity: update.evnex_update
+      name: Evnex
+    - entity: update.cloudflared_update
+      name: Cloudflared
+    - entity: update.echonetlite_platform_update
+      name: ECHONETLite
+    - entity: update.xiaomi_home_update
+      name: Xiaomi Home
+    - entity: update.apexcharts_card_update
+      name: ApexCharts card
+  - type: entities
+    title: Backups
+    icon: mdi:backup-restore
+    entities:
+    - entity: sensor.backup_backup_manager_state
+      name: Status
+    - entity: sensor.backup_last_successful_automatic_backup
+      name: Last Successful
+    - entity: sensor.backup_next_scheduled_automatic_backup
+      name: Next Scheduled
+  - type: entities
+    title: Internet
+    icon: mdi:router-network
+    entities:
+    - entity: binary_sensor.be65_wan_status
+      name: WAN
+    - entity: sensor.be65_external_ip
+      name: External IP
+    - entity: sensor.be65_download_speed
+      name: Download
+    - entity: sensor.be65_upload_speed
+      name: Upload
