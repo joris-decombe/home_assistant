@@ -27,3 +27,14 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Raspberry Pi image build (image.env may hold the Wi-Fi password)
+rpi/image.env
+rpi/build/
+
+# Hyper-V VM disks
+vm/*.vhdx
+vm/*.zip
+
+# Python
+__pycache__/

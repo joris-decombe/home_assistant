@@ -2,6 +2,10 @@
 # Loads default set of integrations. Do not remove.
 default_config:
 
+# Use port 8124 to avoid conflict with Crafty on 8123
+http:
+  server_port: 8124
+
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes

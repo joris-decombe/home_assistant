@@ -41,155 +41,175 @@ views:
       - type: shopping-list
         title: Shopping List
 
-  - title: Lights
-    path: lights
-    icon: mdi:lightbulb-group
-    badges: []
-    cards:
-      - type: markdown
-        content: |
-          ## Lights
-          Add your smart lights to Home Assistant and they will appear here.
-
-          **Supported integrations:**
-          - Philips Hue
-          - LIFX
-          - Zigbee/Z-Wave lights
-          - WiFi smart bulbs
-
-      # Placeholder for light cards - uncomment when you have lights
-      # - type: light
-      #   entity: light.living_room
-      #   name: Living Room
-
-      # Light group example
-      # - type: entities
-      #   title: All Lights
-      #   show_header_toggle: true
-      #   entities:
-      #     - entity: light.living_room
-      #     - entity: light.bedroom
-      #     - entity: light.kitchen
-
-  - title: Climate
-    path: climate
-    icon: mdi:thermometer
-    badges: []
-    cards:
-      - type: markdown
-        content: |
-          ## Climate Control
-          Add thermostats, AC units, or fans to control them here.
-
-          **Supported integrations:**
-          - Nest
-          - Ecobee
-          - Smart AC controllers
-          - Smart fans
-
-      # Placeholder for climate cards
-      # - type: thermostat
-      #   entity: climate.living_room
-
-      # - type: entities
-      #   title: Climate Sensors
-      #   entities:
-      #     - entity: sensor.living_room_temperature
-      #     - entity: sensor.living_room_humidity
-
-  - title: Security
-    path: security
-    icon: mdi:shield-home
-    badges: []
-    cards:
-      - type: markdown
-        content: |
-          ## Security
-          Add cameras, door sensors, and alarms here.
-
-          **Supported integrations:**
-          - Ring
-          - Nest cameras
-          - Zigbee door/window sensors
-          - Motion sensors
-
-      # Placeholder for security cards
-      # - type: picture-entity
-      #   entity: camera.front_door
-      #   camera_view: live
-
-      # - type: entities
-      #   title: Door & Window Sensors
-      #   entities:
-      #     - entity: binary_sensor.front_door
-      #     - entity: binary_sensor.back_door
-
   - title: Media
     path: media
     icon: mdi:play-circle
     badges: []
     cards:
-      - type: markdown
-        content: |
-          ## Media Players
-          Add your smart speakers, TVs, and media devices here.
+      # Sony TV
+      - type: media-control
+        entity: media_player.sony_xr_55x90k
 
-          **Supported integrations:**
-          - Sonos
-          - Chromecast
-          - Apple TV
-          - Smart TVs
+      # Sonos - TV Room (soundbar/surround)
+      - type: media-control
+        entity: media_player.tv_room
 
-      # Placeholder for media cards
-      # - type: media-control
-      #   entity: media_player.living_room_tv
+      # Sonos - Dining Room
+      - type: media-control
+        entity: media_player.dining_room
 
-      # - type: media-control
-      #   entity: media_player.sonos_speaker
+      # Sonos - Hallway
+      - type: media-control
+        entity: media_player.hallway
 
-  - title: Switches
-    path: switches
-    icon: mdi:power-socket
+  - title: Sonos
+    path: sonos
+    icon: mdi:speaker-group
     badges: []
     cards:
-      - type: markdown
-        content: |
-          ## Smart Plugs & Switches
-          Control your smart plugs and switches here.
+      # TV Room Surround System
+      - type: entities
+        title: TV Room Surround
+        icon: mdi:surround-sound
+        show_header_toggle: false
+        entities:
+          - entity: media_player.tv_room
+            name: TV Room Speaker
+          - entity: binary_sensor.tv_room_microphone
+            name: Microphone
+          - entity: sensor.tv_room_audio_input_format
+            name: Audio Format
+          - type: divider
+          - entity: number.tv_room_bass
+            name: Bass
+          - entity: number.tv_room_treble
+            name: Treble
+          - entity: number.tv_room_balance
+            name: Balance
+          - entity: number.tv_room_sub_gain
+            name: Sub Gain
+          - entity: number.tv_room_surround_level
+            name: Surround Level
+          - entity: number.tv_room_music_surround_level
+            name: Music Surround Level
+          - entity: number.tv_room_audio_delay
+            name: Audio Delay
+          - type: divider
+          - entity: switch.tv_room_surround_enabled
+            name: Surround
+          - entity: switch.tv_room_subwoofer_enabled
+            name: Subwoofer
+          - entity: switch.tv_room_night_sound
+            name: Night Sound
+          - entity: switch.tv_room_speech_enhancement
+            name: Speech Enhancement
+          - entity: switch.tv_room_surround_music_full_volume
+            name: Music Full Volume
+          - entity: switch.tv_room_loudness
+            name: Loudness
+          - entity: switch.tv_room_crossfade
+            name: Crossfade
 
-          **Supported integrations:**
-          - TP-Link Kasa
-          - Wemo
-          - Zigbee/Z-Wave switches
-          - WiFi smart plugs
+      # Dining Room Speaker
+      - type: entities
+        title: Dining Room
+        icon: mdi:speaker
+        show_header_toggle: false
+        entities:
+          - entity: media_player.dining_room
+            name: Speaker
+          - type: divider
+          - entity: number.dining_room_bass
+            name: Bass
+          - entity: number.dining_room_treble
+            name: Treble
+          - entity: number.dining_room_balance
+            name: Balance
+          - entity: switch.dining_room_loudness
+            name: Loudness
+          - entity: switch.dining_room_crossfade
+            name: Crossfade
 
-      # Placeholder for switch cards
-      # - type: entities
-      #   title: Living Room
-      #   show_header_toggle: false
-      #   entities:
-      #     - entity: switch.tv_plug
-      #     - entity: switch.lamp_plug
+      # Hallway Speaker
+      - type: entities
+        title: Hallway
+        icon: mdi:speaker
+        show_header_toggle: false
+        entities:
+          - entity: media_player.hallway
+            name: Speaker
+          - type: divider
+          - entity: number.hallway_bass
+            name: Bass
+          - entity: number.hallway_treble
+            name: Treble
+          - entity: number.hallway_balance
+            name: Balance
+          - entity: switch.hallway_loudness
+            name: Loudness
+          - entity: switch.hallway_crossfade
+            name: Crossfade
 
-  - title: Automations
-    path: automations
-    icon: mdi:robot
+  - title: Printer
+    path: printer
+    icon: mdi:printer
     badges: []
     cards:
-      - type: markdown
-        content: |
-          ## Automations & Scripts
-          Manage your home automations here.
+      - type: entities
+        title: HP ENVY 5000
+        icon: mdi:printer
+        entities:
+          - entity: sensor.hp_envy_5000_series
+            name: Status
+          - entity: sensor.hp_envy_5000_series_black_ink
+            name: Black Ink
+            icon: mdi:water
+          - entity: sensor.hp_envy_5000_series_tri_color_ink
+            name: Tri-Color Ink
+            icon: mdi:palette
+
+      - type: gauge
+        entity: sensor.hp_envy_5000_series_black_ink
+        name: Black Ink Level
+        min: 0
+        max: 100
+        severity:
+          green: 50
+          yellow: 20
+          red: 5
+
+      - type: gauge
+        entity: sensor.hp_envy_5000_series_tri_color_ink
+        name: Tri-Color Ink Level
+        min: 0
+        max: 100
+        severity:
+          green: 50
+          yellow: 20
+          red: 5
+
+  - title: System
+    path: system
+    icon: mdi:cog
+    badges: []
+    cards:
+      - type: entities
+        title: Updates
+        icon: mdi:update
+        entities:
+          - entity: update.home_assistant_core_update
+            name: HA Core
+          - entity: update.home_assistant_operating_system_update
+            name: HA OS
+          - entity: update.home_assistant_supervisor_update
+            name: HA Supervisor
+          - entity: update.matter_server_update
+            name: Matter Server
 
       - type: entities
         title: System
         entities:
           - entity: conversation.home_assistant
             name: Voice Assistant
-
-      # Placeholder for automation cards
-      # - type: entities
-      #   title: Automations
-      #   entities:
-      #     - entity: automation.turn_on_lights_at_sunset
-      #     - entity: automation.morning_routine
+          - entity: sensor.backup_backup_manager_state
+            name: Backup Status
