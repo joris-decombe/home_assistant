@@ -75,5 +75,7 @@ The dashboard shows only what HA can control. As of 2026-10-15:
 | Xiaomi lights (Mi Home) | Not in HA | Install **Xiaomi Home** (Xiaomi's official integration, via HACS) and sign in with the Mi Home account. |
 | Matter lights | Not in HA | Matter has no devices paired on this HA (only an old, stale Tapo plug). Add each light with the HA Companion app → Settings → Devices → *Add Matter device*, or share it from its current app with a pairing code. Wi-Fi Matter devices work as is; Thread ones need a border router. |
 
+The wind chart uses the **ApexCharts card** (HACS, frontend only).
+
 Add each new light or `climate.*` entity as a tile under *Lights* or a new
 *Heat pumps* section in `wall_phone.yaml` and push again.

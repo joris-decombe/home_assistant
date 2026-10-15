@@ -12,9 +12,9 @@ views:
     type: sections
     max_columns: 1
     sections:
-      # Clock, then wind and weather for the next 15 h. The headline flags a
-      # wind change of 90 degrees or more (e.g. northerly to southerly) and
-      # the 24 h peak; the table's Now column is the current weather.
+      # Clock and current weather, then the wind. The headline flags a wind
+      # change of 90 degrees or more (e.g. northerly to southerly) and the
+      # 24 h peak; the chart below shows the next 24 h.
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
       - type: grid
         cards:
@@ -37,15 +37,95 @@ views:
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
               ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }}
-              **<ha-icon icon="mdi:weather-windy"></ha-icon> {{ arrows[i0] }} {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h** ·
+              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° · **<ha-icon icon="mdi:weather-windy"></ha-icon> {{ arrows[i0] }} {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h** ·
               {%- if ns.turn %} turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %} steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} at {{ when(ns.peak_t) }}{% endif %}
-
-              {% set pts = fc[2::3][:5] -%}
-              | Now |{% for f in pts %} {{ (f.datetime | as_datetime | as_local).strftime('%H:%M') }} |{% endfor %}
-              |:-:|{% for f in pts %}:-:|{% endfor %}
-              | <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon><br>{{ w.temperature | round(0) | int }}° |{% for f in pts %} <ha-icon icon="mdi:{{ icons.get(f.condition, 'weather-cloudy') }}"></ha-icon><br>{{ f.temperature | round(0) | int }}° |{% endfor %}
-              | {{ arrows[i0] }}{{ dirs[i0] }}&nbsp;{{ w.wind_speed | float(0) | round(0) | int }} |{% for f in pts %}{% set i = sector(f.wind_bearing) | int %} {{ arrows[i] }}{{ dirs[i] }}&nbsp;{{ f.wind_speed | float(0) | round(0) | int }} |{% endfor %}
+          # Next 24 h: wind speed (area, km/h, left axis) labelled with its
+          # direction every 3 h, temperature (line, right axis) and rain (bars).
+          # Needs the ApexCharts card from HACS.
+          - type: custom:apexcharts-card
+            graph_span: 24h
+            span:
+              start: hour
+            header:
+              show: false
+            grid_options:
+              columns: full
+            apex_config:
+              chart:
+                height: 190
+              legend:
+                show: false
+              grid:
+                padding:
+                  left: 0
+                  right: 0
+              xaxis:
+                labels:
+                  format: HH:mm
+              dataLabels:
+                background:
+                  enabled: false
+                offsetY: -6
+                style:
+                  fontSize: 11px
+                formatter: |
+                  EVAL:function (val, opts) {
+                    if (opts.dataPointIndex % 3 !== 0) return '';
+                    const hass = document.querySelector('home-assistant').hass;
+                    const f = hass.states['sensor.hourly_forecast'].attributes.forecast[opts.dataPointIndex];
+                    if (!f) return '';
+                    const i = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
+                    return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][i] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][i];
+                  }
+            yaxis:
+              - id: wind
+                min: 0
+                decimals: 0
+                apex_config:
+                  tickAmount: 3
+              - id: temp
+                opposite: true
+                decimals: 0
+                apex_config:
+                  tickAmount: 3
+              - id: rain
+                show: false
+                min: 0
+                max: 8
+            series:
+              - entity: sensor.hourly_forecast
+                name: Wind
+                yaxis_id: wind
+                type: area
+                color: '#0288d1'
+                curve: smooth
+                stroke_width: 2
+                opacity: 0.25
+                unit: ' km/h'
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+              - entity: sensor.hourly_forecast
+                name: Temperature
+                yaxis_id: temp
+                type: line
+                color: '#ef6c00'
+                curve: smooth
+                stroke_width: 2
+                unit: ' °C'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+              - entity: sensor.hourly_forecast
+                name: Rain
+                yaxis_id: rain
+                type: column
+                color: '#64b5f6'
+                opacity: 0.5
+                unit: ' mm'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
 
       # Live power, read-only. The heading opens the Power view.
       - type: grid
