@@ -14,6 +14,12 @@ uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboar
 (`HASS_TOKEN` must be set. Always pass `wall-phone`: without it the script
 overwrites the main Overview dashboard.)
 
+The wind strip reads `sensor.hourly_forecast`, defined in
+[`config/packages/wall_phone.yaml`](../config/packages/wall_phone.yaml). On the
+Pi it lives in `/config/packages/`, loaded by `homeassistant: packages:
+!include_dir_named packages` in `configuration.yaml`, and the recorder excludes
+it. After editing it, copy it to the Pi and reload template entities.
+
 ## 1. Home Assistant
 
 1. Reserve **192.168.68.68** for the Pi in the router (Deco app → Advanced →

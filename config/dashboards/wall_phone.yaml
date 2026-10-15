@@ -12,26 +12,60 @@ views:
     type: sections
     max_columns: 1
     sections:
-      # Clock, then current weather and the next days.
+      # Clock and date beside the current weather; tap it for the forecast.
       - type: grid
         cards:
           - type: markdown
             text_only: true
             grid_options:
-              columns: full
+              columns: 6
             content: |
               {% set up = is_state('sun.sun', 'above_horizon') %}
               # {{ now().strftime('%H:%M') }}
-              **{{ now().strftime('%A %-d %B') }}** · {{ 'sunset' if up else 'sunrise' }} {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
-          - type: weather-forecast
+              {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
+          - type: tile
             entity: weather.forecast_home
-            show_current: true
-            show_forecast: true
-            forecast_type: daily
-            tap_action:
-              action: none
+            name: Outside
+            state_content:
+              - state
+              - temperature
+            vertical: true
+            grid_options:
+              columns: 6
+              rows: 2
+
+      # Wind and weather for the next 15 h. The headline flags a wind change
+      # of 90 degrees or more (e.g. northerly to southerly) and the 24 h peak.
+      # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
+      - type: grid
+        cards:
+          - type: markdown
             grid_options:
               columns: full
+            content: |
+              {%- set fc = state_attr('sensor.hourly_forecast', 'forecast') or [] %}
+              {%- set dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] %}
+              {%- set arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'] %}
+              {%- set icons = {'clear-night': 'weather-night', 'cloudy': 'weather-cloudy', 'exceptional': 'alert-circle-outline', 'fog': 'weather-fog', 'hail': 'weather-hail', 'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'partlycloudy': 'weather-partly-cloudy', 'pouring': 'weather-pouring', 'rainy': 'weather-rainy', 'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'sunny': 'weather-sunny', 'windy': 'weather-windy', 'windy-variant': 'weather-windy-variant'} %}
+              {%- macro sector(b) %}{{ ((b | float(0) + 22.5) // 45) | int % 8 }}{% endmacro %}
+              {%- macro when(dt) %}{% set l = dt | as_datetime | as_local %}{{ l.strftime('%H:%M') if l.date() == now().date() else l.strftime('%a %H:%M') }}{% endmacro %}
+              {%- set w = states.weather.forecast_home.attributes %}
+              {%- set i0 = sector(w.wind_bearing) | int %}
+              {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
+              {%- for f in fc %}
+              {%- set d = (sector(f.wind_bearing) | int - i0) % 8 %}
+              {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
+              {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
+              {%- endfor %}
+              **<ha-icon icon="mdi:weather-windy"></ha-icon> {{ arrows[i0] }} {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h** ·
+              {%- if ns.turn %} turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %} steady {{ dirs[i0] }}{% endif %}
+              {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} at {{ when(ns.peak_t) }}{% endif %}
+
+              {% set pts = fc[2::3][:5] -%}
+              | Now |{% for f in pts %} {{ (f.datetime | as_datetime | as_local).strftime('%H:%M') }} |{% endfor %}
+              |:-:|{% for f in pts %}:-:|{% endfor %}
+              | <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° |{% for f in pts %} <ha-icon icon="mdi:{{ icons.get(f.condition, 'weather-cloudy') }}"></ha-icon> {{ f.temperature | round(0) | int }}° |{% endfor %}
+              | {{ arrows[i0] }}{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} |{% for f in pts %}{% set i = sector(f.wind_bearing) | int %} {{ arrows[i] }}{{ dirs[i] }} {{ f.wind_speed | float(0) | round(0) | int }} |{% endfor %}
 
       # Live power, read-only. The heading opens the Power view.
       - type: grid
@@ -55,32 +89,31 @@ views:
                 entity: sensor.alphaess_self_sufficiency
                 icon: mdi:home-battery
                 color: green
+          # Big value with the last 24 h drawn underneath (watts, as the
+          # entities report them; grid is negative when exporting).
           - &power
-            type: markdown
+            type: sensor
+            entity: sensor.alphaess_instantaneous_generation
+            name: Solar
+            icon: mdi:solar-power-variant
+            graph: line
+            hours_to_show: 24
+            detail: 1
             grid_options:
               columns: 6
-            content: |
-              {% set w = states('sensor.alphaess_instantaneous_generation') | float(0) %}
-              <ha-icon icon="mdi:solar-power-variant"></ha-icon> Solar
-              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+              rows: 2
           - <<: *power
-            content: |
-              {% set w = states('sensor.alphaess_instantaneous_load') | float(0) %}
-              <ha-icon icon="mdi:home-lightning-bolt"></ha-icon> Using
-              ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
+            entity: sensor.alphaess_instantaneous_load
+            name: Using
+            icon: mdi:home-lightning-bolt
           - <<: *power
-            content: |
-              {% set w = states('sensor.alphaess_instantaneous_battery_i_o') | float(0) %}
-              {% set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
-              {% set lvl = ([[(soc / 10) | round(0) | int, 1] | max, 10] | min) * 10 %}
-              {% set icon = ('battery-charging-' ~ lvl) if w < -20 else ('battery' if lvl == 100 else 'battery-' ~ lvl) %}
-              <ha-icon icon="mdi:{{ icon }}"></ha-icon> {{ 'Charging' if w < -20 else 'Discharging' if w > 20 else 'Battery' }}
-              ## {{ soc | round(0) | int }}%{{ ' · %.1f kW' | format(w | abs / 1000) if w | abs >= 100 else '' }}
+            entity: sensor.alphaess_instantaneous_battery_soc
+            name: Battery
+            icon: mdi:battery-charging-50
           - <<: *power
-            content: |
-              {% set w = states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0) %}
-              <ha-icon icon="mdi:{{ 'transmission-tower-import' if w > 20 else 'transmission-tower-export' if w < -20 else 'transmission-tower' }}"></ha-icon> {{ 'Importing' if w > 20 else 'Exporting' if w < -20 else 'Grid' }}
-              ## {{ '%.2f kW' | format(w | abs / 1000) if w | abs >= 1000 else '%d W' | format(w | abs) }}
+            entity: sensor.alphaess_instantaneous_grid_i_o_total
+            name: Grid
+            icon: mdi:transmission-tower
 
       # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
       # the full thermostat (modes, fan, swing). Then lights and the bedroom.
@@ -138,6 +171,19 @@ views:
               action: none
             grid_options:
               columns: 6
+
+      # Least urgent, so below the controls.
+      - type: grid
+        cards:
+          - type: weather-forecast
+            entity: weather.forecast_home
+            show_current: false
+            show_forecast: true
+            forecast_type: daily
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
 
   - title: Power
     path: power

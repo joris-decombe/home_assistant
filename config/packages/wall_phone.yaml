@@ -1,0 +1,40 @@
+# Wall-phone dashboard helpers. Loaded as a package: configuration.yaml on the
+# Pi has `homeassistant: packages: !include_dir_named packages`. Copy this file
+# to /config/packages/ and restart (or reload template entities).
+
+template:
+  # The next 24 hours of met.no forecast, trimmed to what the wind strip on the
+  # wall-phone dashboard shows. Weather entities only expose forecasts through
+  # weather.get_forecasts, so this refreshes it every 30 minutes. The
+  # attribute is excluded from the recorder (see configuration.yaml).
+  - trigger:
+      - trigger: time_pattern
+        minutes: /30
+      - trigger: homeassistant
+        event: start
+    action:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_home
+        data:
+          type: hourly
+        response_variable: hourly
+    sensor:
+      - name: Hourly forecast
+        unique_id: wall_phone_hourly_forecast
+        icon: mdi:weather-windy
+        state: "{{ now().isoformat(timespec='minutes') }}"
+        attributes:
+          forecast: >
+            {% set ns = namespace(out=[]) %}
+            {% for f in hourly['weather.forecast_home'].forecast[:24] %}
+              {% set ns.out = ns.out + [{
+                'datetime': f.datetime,
+                'condition': f.condition,
+                'temperature': f.temperature,
+                'wind_speed': f.wind_speed,
+                'wind_bearing': f.wind_bearing,
+                'precipitation': f.precipitation,
+              }] %}
+            {% endfor %}
+            {{ ns.out }}
