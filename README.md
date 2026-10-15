@@ -1,65 +1,42 @@
-# Home Assistant Smart Home Setup
+# Home Assistant
 
-Home Assistant OS running in a Hyper-V VM with Claude Code MCP integration.
+Configuration, dashboards and docs for our Home Assistant, which runs as
+**Home Assistant OS on a Raspberry Pi 3**:
 
-## Quick Start
+- At home: `http://192.168.68.68:8123`
+- Away: `https://home.dx2-66.com` (Cloudflare Tunnel behind Cloudflare Access;
+  see [docs/remote-access.md](docs/remote-access.md))
 
-1. **Create the Hyper-V VM**
-   ```powershell
-   # Run as Administrator
-   cd C:\Users\joris\code\home_assistant\vm
-   .\setup-ha-vm.ps1
-   ```
+This repo isn't the live configuration. Most of HA's state (integrations,
+helpers, `.storage/`) lives on the Pi. Files here are pushed or copied to it.
+[CLAUDE.md](CLAUDE.md) explains how each piece gets there.
 
-2. **Complete Setup**
-   - Find the VM's IP: `Get-VM HomeAssistant | Get-VMNetworkAdapter | Select IPAddresses`
-   - Open `http://<IP>:8123`
-   - Create your admin account
-   - Complete the onboarding wizard
+## What's here
 
-3. **Create Access Token**
-   - Click your profile (bottom-left)
-   - Scroll to "Long-Lived Access Tokens"
-   - Create a token named "Claude MCP"
+| Path | What |
+|---|---|
+| `config/dashboards/wall_phone.yaml` | Dashboard for the wall-mounted Galaxy Note 9: clock, wind/weather chart, power, heat pumps, lights. See [docs/wall-phone.md](docs/wall-phone.md) |
+| `config/packages/wall_phone.yaml` | Its helpers: hourly forecast sensor, ceiling-light Off/Night/Full control, heat-pump energy today |
+| `scripts/push_dashboard.py` | Pushes a dashboard YAML to HA over the WebSocket API |
+| `rpi/` | Builds a verified HAOS image for a Raspberry Pi ([rpi/README.md](rpi/README.md)) |
+| `docs/` | Wall phone and remote access guides |
+| `vm/`, `docker-compose.yml`, `config/configuration.yaml`, `config/dashboards/smart_home.yaml` | **Legacy** from the earlier Hyper-V VM and Docker setups. The VM is kept, shut down, as a fallback. Not used by the Pi |
 
-4. **Configure Claude Code MCP**
-   ```bash
-   cp .claude/settings.local.json.example .claude/settings.local.json
-   ```
-   Edit `.claude/settings.local.json` and fill in your HA IP and token.
+## Pushing a dashboard
 
-5. **Restart Claude Code** to load the MCP server
+```bash
+HASS_TOKEN=<token> uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
+```
 
-## Architecture
+Always give the dashboard's URL path (`wall-phone`). Without it, the script
+overwrites the main Overview dashboard.
 
-Home Assistant OS runs in a Hyper-V Gen 2 VM with an External Virtual Switch,
-giving it direct access to the LAN for device discovery (mDNS, SSDP, UPnP).
+## Claude Code MCP
 
-## Files
+```bash
+cp .claude/settings.local.json.example .claude/settings.local.json
+```
 
-| File | Purpose |
-|------|---------|
-| `vm/setup-ha-vm.ps1` | Hyper-V VM setup script |
-| `config/dashboards/smart_home.yaml` | Dashboard configuration |
-| `.claude/settings.local.json` | MCP server config (not committed) |
-| `rpi/` | Builds a Home Assistant OS image for a Raspberry Pi ([rpi/README.md](rpi/README.md)) |
-
-## Dashboard
-
-The Smart Home dashboard includes:
-- **Home** - Weather, sun position, people tracking, shopping list
-- **Media** - Sony TV, Sonos speakers (media controls)
-- **Sonos** - Detailed Sonos EQ, surround, and speaker settings
-- **Printer** - HP ENVY 5000 status and ink levels
-- **System** - HA updates and backup status
-
-## Adding Devices
-
-Devices on the LAN are auto-discovered. To add manually:
-1. Go to Settings → Devices & Services
-2. Click "Add Integration"
-3. Search for your device brand
-4. Follow the setup wizard
-
-Edit `config/dashboards/smart_home.yaml` and push via the WebSocket API or
-edit the dashboard directly in the HA UI.
+Fill in `HASS_HOST` (`http://192.168.68.68:8123`) and a long-lived access token
+(HA profile → Security → Long-lived access tokens), then restart Claude Code.
+The file is gitignored.

@@ -10,8 +10,8 @@ the live config.** Home Assistant OS runs on a **Raspberry Pi 3** at
 or copied (see below). Most of HA's state lives on the Pi and is managed through
 the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 
-- The README still describes the earlier Hyper-V VM setup. The VM `HomeAssistant`
-  is kept, shut down, as a fallback (`AutomaticStartAction` = Nothing).
+- `vm/` is from the earlier Hyper-V VM setup. The VM `HomeAssistant` is kept,
+  shut down, as a fallback (`AutomaticStartAction` = Nothing).
 - `config/configuration.yaml` and `docker-compose.yml` are leftovers from a
   scratch Docker container (port 8124). The Pi's real `configuration.yaml`
   differs: it loads `packages/` and has the recorder tuning. Edit it on the Pi.
