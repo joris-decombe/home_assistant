@@ -1,6 +1,6 @@
 # Wall-mounted phone (Samsung Galaxy Note 9, QHD+ 1440x2960 portrait) running
 # Fully Kiosk Browser. Android renders it at 3.5x, so the page sees a ~412x846 CSS
-# viewport; the Home view is laid out to fit 360x800 without scrolling.
+# viewport. The Home view puts clock + wind, power and the heat pumps first.
 # Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
 # Power figures are read-only; only heat pumps and lights are controllable.
@@ -12,30 +12,9 @@ views:
     type: sections
     max_columns: 1
     sections:
-      # Clock and date beside the current weather; tap it for the forecast.
-      - type: grid
-        cards:
-          - type: markdown
-            text_only: true
-            grid_options:
-              columns: 6
-            content: |
-              {% set up = is_state('sun.sun', 'above_horizon') %}
-              # {{ now().strftime('%H:%M') }}
-              {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
-          - type: tile
-            entity: weather.forecast_home
-            name: Outside
-            state_content:
-              - state
-              - temperature
-            vertical: true
-            grid_options:
-              columns: 6
-              rows: 2
-
-      # Wind and weather for the next 15 h. The headline flags a wind change
-      # of 90 degrees or more (e.g. northerly to southerly) and the 24 h peak.
+      # Clock, then wind and weather for the next 15 h. The headline flags a
+      # wind change of 90 degrees or more (e.g. northerly to southerly) and
+      # the 24 h peak; the table's Now column is the current weather.
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
       - type: grid
         cards:
@@ -57,6 +36,7 @@ views:
               {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
+              ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }}
               **<ha-icon icon="mdi:weather-windy"></ha-icon> {{ arrows[i0] }} {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h** ·
               {%- if ns.turn %} turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %} steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} at {{ when(ns.peak_t) }}{% endif %}
@@ -64,8 +44,8 @@ views:
               {% set pts = fc[2::3][:5] -%}
               | Now |{% for f in pts %} {{ (f.datetime | as_datetime | as_local).strftime('%H:%M') }} |{% endfor %}
               |:-:|{% for f in pts %}:-:|{% endfor %}
-              | <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° |{% for f in pts %} <ha-icon icon="mdi:{{ icons.get(f.condition, 'weather-cloudy') }}"></ha-icon> {{ f.temperature | round(0) | int }}° |{% endfor %}
-              | {{ arrows[i0] }}{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} |{% for f in pts %}{% set i = sector(f.wind_bearing) | int %} {{ arrows[i] }}{{ dirs[i] }} {{ f.wind_speed | float(0) | round(0) | int }} |{% endfor %}
+              | <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon><br>{{ w.temperature | round(0) | int }}° |{% for f in pts %} <ha-icon icon="mdi:{{ icons.get(f.condition, 'weather-cloudy') }}"></ha-icon><br>{{ f.temperature | round(0) | int }}° |{% endfor %}
+              | {{ arrows[i0] }}{{ dirs[i0] }}&nbsp;{{ w.wind_speed | float(0) | round(0) | int }} |{% for f in pts %}{% set i = sector(f.wind_bearing) | int %} {{ arrows[i] }}{{ dirs[i] }}&nbsp;{{ f.wind_speed | float(0) | round(0) | int }} |{% endfor %}
 
       # Live power, read-only. The heading opens the Power view.
       - type: grid
