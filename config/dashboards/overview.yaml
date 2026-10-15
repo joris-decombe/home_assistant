@@ -267,6 +267,16 @@ views:
         icon: mdi:home-battery
         color: green
         tap_action: *id001
+      - type: entity
+        entity: sensor.garage_joris_home_charger_metered_power
+        icon: mdi:ev-station
+        color: green
+        tap_action:
+          action: none
+        visibility:
+        - condition: state
+          entity: binary_sensor.garage_joris_home_charger_charging
+          state: 'on'
     - type: sensor
       entity: sensor.alphaess_instantaneous_generation
       name: Solar
