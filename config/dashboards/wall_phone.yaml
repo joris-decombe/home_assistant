@@ -269,6 +269,17 @@ views:
                 entity: sensor.alphaess_self_sufficiency
                 icon: mdi:home-battery
                 color: green
+              # Only while the car charges (Evnex polls its cloud every ~5 min).
+              - type: entity
+                entity: sensor.garage_joris_home_charger_metered_power
+                icon: mdi:ev-station
+                color: green
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.garage_joris_home_charger_charging
+                    state: "on"
           # Big value with the last 24 h drawn underneath (watts, as the
           # entities report them; grid is negative when exporting).
           - &power
