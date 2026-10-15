@@ -19,6 +19,7 @@ views:
       - type: grid
         cards:
           - type: markdown
+            text_only: true
             grid_options:
               columns: full
             content: |
@@ -37,12 +38,13 @@ views:
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
               ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }}
-              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° · **<ha-icon icon="mdi:weather-windy"></ha-icon> {{ arrows[i0] }} {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h** ·
-              {%- if ns.turn %} turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %} steady {{ dirs[i0] }}{% endif %}
-              {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} at {{ when(ns.peak_t) }}{% endif %}
-          # Next 24 h: wind speed (area, km/h, left axis) labelled with its
-          # direction every 3 h, temperature (line, right axis) and rain (bars).
-          # Needs the ApexCharts card from HACS.
+              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**<br>
+              {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
+              {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
+          # Next 24 h: wind (blue, km/h, left axis) labelled with its direction
+          # every 3 h, temperature (orange, °C, right axis), rain as pale bars
+          # along the bottom. Needs the ApexCharts card (HACS); the direction
+          # labels read sensor.hourly_forecast in the same order as the points.
           - type: custom:apexcharts-card
             graph_span: 24h
             span:
@@ -53,55 +55,91 @@ views:
               columns: full
             apex_config:
               chart:
-                height: 190
+                height: 175
+                parentHeightOffset: 0
               legend:
                 show: false
+              tooltip:
+                enabled: false
               grid:
+                borderColor: rgba(127, 127, 127, 0.2)
+                strokeDashArray: 3
                 padding:
-                  left: 0
-                  right: 0
+                  left: 6
+                  right: 14
+                  top: 6
+                  bottom: -4
               xaxis:
+                axisBorder:
+                  show: false
+                axisTicks:
+                  show: false
                 labels:
                   format: HH:mm
+                  style:
+                    colors: var(--secondary-text-color)
+              fill:
+                type: [gradient, solid, solid]
+                gradient:
+                  shadeIntensity: 0
+                  opacityFrom: 0.35
+                  opacityTo: 0.02
+                  stops: [0, 100]
               dataLabels:
+                enabledOnSeries: [0]
                 background:
                   enabled: false
-                offsetY: -6
+                offsetY: -8
                 style:
                   fontSize: 11px
+                  fontWeight: 600
+                  colors: ['#1565c0']
                 formatter: |
                   EVAL:function (val, opts) {
-                    if (opts.dataPointIndex % 3 !== 0) return '';
+                    const i = opts.dataPointIndex;
+                    if (i % 3 !== 0) return '';
                     const hass = document.querySelector('home-assistant').hass;
-                    const f = hass.states['sensor.hourly_forecast'].attributes.forecast[opts.dataPointIndex];
+                    const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
                     if (!f) return '';
-                    const i = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
-                    return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][i] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][i];
+                    const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
+                    return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
                   }
             yaxis:
+              # Soft ranges (~): round ticks, stretched only if the forecast
+              # goes beyond them.
               - id: wind
                 min: 0
-                decimals: 0
+                max: ~80
                 apex_config:
-                  tickAmount: 3
+                  tickAmount: 4
+                  labels:
+                    style:
+                      colors: '#1e88e5'
+                    formatter: |
+                      EVAL:function (v) { return Math.round(v) + ' km/h'; }
               - id: temp
                 opposite: true
-                decimals: 0
+                min: ~0
+                max: ~20
                 apex_config:
-                  tickAmount: 3
+                  tickAmount: 4
+                  labels:
+                    style:
+                      colors: '#fb8c00'
+                    formatter: |
+                      EVAL:function (v) { return Math.round(v) + '°C'; }
               - id: rain
                 show: false
                 min: 0
-                max: 8
+                max: 10
             series:
               - entity: sensor.hourly_forecast
                 name: Wind
                 yaxis_id: wind
                 type: area
-                color: '#0288d1'
+                color: '#1e88e5'
                 curve: smooth
-                stroke_width: 2
-                opacity: 0.25
+                stroke_width: 2.5
                 unit: ' km/h'
                 show:
                   datalabels: true
@@ -111,7 +149,7 @@ views:
                 name: Temperature
                 yaxis_id: temp
                 type: line
-                color: '#ef6c00'
+                color: '#fb8c00'
                 curve: smooth
                 stroke_width: 2
                 unit: ' °C'
@@ -121,8 +159,8 @@ views:
                 name: Rain
                 yaxis_id: rain
                 type: column
-                color: '#64b5f6'
-                opacity: 0.5
+                color: '#90caf9'
+                opacity: 0.7
                 unit: ' mm'
                 data_generator: |
                   return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
