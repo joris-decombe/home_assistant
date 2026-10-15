@@ -54,7 +54,7 @@ The dashboard shows only what HA can control. As of 2026-10-15:
 | Device | Status | How to add |
 |---|---|---|
 | TP-Link/Tapo plugs (Lampe salon) | In HA | Done |
-| Mitsubishi heat pumps | Not in HA | In the **Mitsubishi Electric NZ** app, enable *ECHONET Lite* for each unit and reserve the units' IPs in the router, then install **ECHONETLite** (HACS) and add each unit by IP. Fully local, no cloud. |
+| Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.68.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. |
 | Xiaomi lights (Mi Home) | Not in HA | Install **Xiaomi Home** (Xiaomi's official integration, via HACS) and sign in with the Mi Home account. |
 | Matter lights | Not in HA | Matter has no devices paired on this HA (only an old, stale Tapo plug). Add each light with the HA Companion app → Settings → Devices → *Add Matter device*, or share it from its current app with a pairing code. Wi-Fi Matter devices work as is; Thread ones need a border router. |
 

@@ -1,7 +1,7 @@
 # Wall-mounted phone (Samsung Galaxy S20, portrait) running Fully Kiosk Browser.
 # Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
-# Power figures are read-only; only lights and heat pumps are controllable.
+# Power figures are read-only; only heat pumps and lights are controllable.
 title: Wall Phone
 views:
   - title: Home
@@ -59,6 +59,33 @@ views:
             layout: vertical
             grid_options:
               columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Heat pumps
+            heading_style: title
+            icon: mdi:heat-pump
+          - &heat_pump
+            type: tile
+            entity: climate.living_room
+            name: Living room
+            state_content:
+              - hvac_action
+              - current_temperature
+            grid_options:
+              columns: full
+            features_position: bottom
+            features:
+              - type: climate-hvac-modes
+                hvac_modes: [heat, cool, "off"]
+              - type: target-temperature
+          - <<: *heat_pump
+            entity: climate.dining_room
+            name: Dining room
+          - <<: *heat_pump
+            entity: climate.hall
+            name: Hall
 
       - type: grid
         cards:
