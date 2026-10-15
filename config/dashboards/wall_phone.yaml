@@ -59,6 +59,24 @@ views:
                 parentHeightOffset: 0
               legend:
                 show: false
+              # Units above each axis; tick labels are plain numbers.
+              title:
+                text: km/h
+                align: left
+                offsetX: 4
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#1e88e5'
+              subtitle:
+                text: °C
+                align: right
+                offsetX: -4
+                offsetY: 0
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#fb8c00'
               tooltip:
                 enabled: false
               grid:
@@ -67,7 +85,7 @@ views:
                 padding:
                   left: 6
                   right: 14
-                  top: 6
+                  top: -14
                   bottom: -4
               xaxis:
                 axisBorder:
@@ -116,7 +134,7 @@ views:
                     style:
                       colors: '#1e88e5'
                     formatter: |
-                      EVAL:function (v) { return Math.round(v) + ' km/h'; }
+                      EVAL:function (v) { return Math.round(v); }
               - id: temp
                 opposite: true
                 min: ~0
@@ -127,7 +145,7 @@ views:
                     style:
                       colors: '#fb8c00'
                     formatter: |
-                      EVAL:function (v) { return Math.round(v) + '°C'; }
+                      EVAL:function (v) { return Math.round(v); }
               - id: rain
                 show: false
                 min: 0
