@@ -1,0 +1,132 @@
+# Wall-phone dashboard helpers: the hourly forecast sensor, the ceiling
+# lights' Off / Night / Full control with its one-tap scripts, and today's
+# heat-pump energy. Loaded as a package: configuration.yaml
+# on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
+# this file to /config/packages/ and reload template entities.
+
+template:
+  # The next 24 hours of met.no forecast, trimmed to what the wind strip on the
+  # wall-phone dashboard shows. Weather entities only expose forecasts through
+  # weather.get_forecasts, so this refreshes it every 30 minutes. The
+  # attribute is excluded from the recorder (see configuration.yaml).
+  - trigger:
+      - trigger: time_pattern
+        minutes: /30
+      - trigger: homeassistant
+        event: start
+    action:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_home
+        data:
+          type: hourly
+        response_variable: hourly
+    sensor:
+      - name: Hourly forecast
+        unique_id: wall_phone_hourly_forecast
+        icon: mdi:weather-windy
+        state: "{{ now().isoformat(timespec='minutes') }}"
+        attributes:
+          forecast: >
+            {% set ns = namespace(out=[]) %}
+            {% for f in hourly['weather.forecast_home'].forecast[:24] %}
+              {% set ns.out = ns.out + [{
+                'datetime': f.datetime,
+                'condition': f.condition,
+                'temperature': f.temperature,
+                'wind_speed': f.wind_speed,
+                'wind_bearing': f.wind_bearing,
+                'precipitation': f.precipitation,
+              }] %}
+            {% endfor %}
+            {{ ns.out }}
+
+  # Ceiling lights as one Off / Night / Full control for the wall phone. Each
+  # Yeelight ceiling light has a Day (main light) and Night (moonlight)
+  # effect; the Xiaomi light group doesn't expose them, so this drives both
+  # lights directly. The state is read back from the lights, so it stays
+  # right when they're switched from the wall or the app.
+  - select:
+      - name: Ceiling lights
+        unique_id: wall_phone_ceiling_lights_mode
+        icon: >
+          {{ {'Night': 'mdi:weather-night', 'Full': 'mdi:ceiling-light-multiple'}
+             .get(this.state, 'mdi:ceiling-light-multiple-outline') }}
+        options: "{{ ['Off', 'Night', 'Full'] }}"
+        state: >
+          {% set on = ['light.yeelink_sg_594287415_ceiling22_s_2_light',
+                       'light.yeelink_sg_594289920_ceiling22_s_2_light']
+                      | select('is_state', 'on') | list %}
+          {% if not on %}Off
+          {% elif on | map('state_attr', 'effect') | select('eq', 'Night') | list | count == on | count %}Night
+          {% else %}Full{% endif %}
+        select_option:
+          - variables:
+              lights:
+                - light.yeelink_sg_594287415_ceiling22_s_2_light
+                - light.yeelink_sg_594289920_ceiling22_s_2_light
+          - choose:
+              - conditions: "{{ option == 'Off' }}"
+                sequence:
+                  - action: light.turn_off
+                    target:
+                      entity_id: "{{ lights }}"
+              - conditions: "{{ option == 'Night' }}"
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: "{{ lights }}"
+                    data:
+                      effect: Night
+            default:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ lights }}"
+                data:
+                  effect: Day
+                  brightness_pct: 100
+
+  # Heat-pump energy used today, for the wall phone. Only Living room and
+  # Dining room report energy over ECHONET Lite (Hall's adapter doesn't).
+  # The daily meters are utility_meter helpers created in the UI.
+  - sensor:
+      - name: Heat pumps today
+        unique_id: wall_phone_heat_pumps_today
+        icon: mdi:heat-pump
+        unit_of_measurement: kWh
+        device_class: energy
+        state: >
+          {{ (states('sensor.living_room_heat_pump_today') | float(0)
+              + states('sensor.dining_room_heat_pump_today') | float(0)) | round(1) }}
+
+script:
+  # One tap on the wall phone's ceiling-light card: both lights on (in their
+  # last mode) or both off.
+  ceiling_lights_toggle:
+    alias: Ceiling lights on/off
+    icon: mdi:ceiling-light-multiple
+    sequence:
+      - if: "{{ is_state('select.ceiling_lights', 'Off') }}"
+        then:
+          - action: light.turn_on
+            target:
+              entity_id:
+                - light.yeelink_sg_594287415_ceiling22_s_2_light
+                - light.yeelink_sg_594289920_ceiling22_s_2_light
+        else:
+          - action: select.select_option
+            target:
+              entity_id: select.ceiling_lights
+            data:
+              option: "Off"
+
+  # One tap on the card's icon: Night <-> Full (Night when off).
+  ceiling_lights_flip_mode:
+    alias: Ceiling lights night/full
+    icon: mdi:weather-night
+    sequence:
+      - action: select.select_option
+        target:
+          entity_id: select.ceiling_lights
+        data:
+          option: "{{ 'Full' if is_state('select.ceiling_lights', 'Night') else 'Night' }}"
