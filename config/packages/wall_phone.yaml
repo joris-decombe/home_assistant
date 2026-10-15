@@ -1,5 +1,6 @@
-# Wall-phone dashboard helpers: the hourly forecast sensor and the ceiling
-# lights' Off / Night / Full control with its one-tap scripts. Loaded as a package: configuration.yaml
+# Wall-phone dashboard helpers: the hourly forecast sensor, the ceiling
+# lights' Off / Night / Full control with its one-tap scripts, and today's
+# heat-pump energy. Loaded as a package: configuration.yaml
 # on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
 # this file to /config/packages/ and reload template entities.
 
@@ -84,6 +85,19 @@ template:
                 data:
                   effect: Day
                   brightness_pct: 100
+
+  # Heat-pump energy used today, for the wall phone. Only Living room and
+  # Dining room report energy over ECHONET Lite (Hall's adapter doesn't).
+  # The daily meters are utility_meter helpers created in the UI.
+  - sensor:
+      - name: Heat pumps today
+        unique_id: wall_phone_heat_pumps_today
+        icon: mdi:heat-pump
+        unit_of_measurement: kWh
+        device_class: energy
+        state: >
+          {{ (states('sensor.living_room_heat_pump_today') | float(0)
+              + states('sensor.dining_room_heat_pump_today') | float(0)) | round(1) }}
 
 script:
   # One tap on the wall phone's ceiling-light card: both lights on (in their

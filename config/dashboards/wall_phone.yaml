@@ -303,6 +303,14 @@ views:
             heading_style: subtitle
             icon: mdi:home-thermometer
             badges:
+              # Living room + Dining room heat pumps' energy today (Hall's
+              # adapter doesn't report it); sensor in the wall-phone package.
+              - type: entity
+                entity: sensor.heat_pumps_today
+                icon: mdi:heat-pump
+                color: deep-orange
+                tap_action:
+                  action: none
               - type: entity
                 entity: sensor.living_room_measured_outdoor_air_temperature
                 name: Outside
