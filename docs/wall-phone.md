@@ -1,6 +1,6 @@
-# Wall phone (Galaxy S20)
+# Wall phone (Galaxy Note 9)
 
-An old Galaxy S20 on the wall, permanently on the charger, showing the
+An old Galaxy Note 9 on the wall, permanently on the charger, showing the
 **Wall Phone** dashboard (`config/dashboards/wall_phone.yaml`): clock and weather,
 live solar / load / battery / grid with a power-flow chart, and tap-to-toggle
 tiles for lights and heat pumps. Power figures are read-only.
@@ -25,27 +25,38 @@ overwrites the main Overview dashboard.)
 
 ## 2. Phone
 
-1. Factory reset (optional but cleaner), skip the Google/Samsung account, join
-   the home Wi-Fi.
-2. **Battery protection** (important on a phone that never unplugs; it stops
-   the battery swelling): Settings → Battery and device care → Battery →
-   More battery settings → **Protect battery** (caps charging at 85%).
-3. Install **Fully Kiosk Browser** from the Play Store. The free version works;
-   a PLUS licence (one-off, per device) removes the watermark and enables motion
-   wake and the Home Assistant integration.
-4. Fully Kiosk → Settings:
+Free setup: Fully Kiosk without a licence, locked in with Android's own app
+pinning. Turning on any PLUS feature (Kiosk Mode, screensaver or brightness
+schedules, Remote Administration) adds a "Get a License" banner.
+
+1. Install **Fully Kiosk Browser** from the Play Store *before* removing the
+   Google account (the Play Store needs it).
+2. Remove accounts: Settings → Accounts and backup → Accounts → Google /
+   Samsung account → Remove account. Remove them before any factory reset, or
+   the reset asks for the old Google login.
+3. Fully Kiosk → Settings (everything else off):
    - Web Content → *Start URL*: `http://192.168.68.68:8123/wall-phone/home`
+     (`http://` and `:8123` are required; anything else is "connection refused")
    - Device Management → *Keep screen on*, *Launch on boot*
    - Web Auto Reload → *Auto reload on network reconnect*
-   - Screen saver / Screen brightness → dim between 22:00 and 07:00
-   - Kiosk Mode → *Enable* (set an exit PIN)
-5. Open the start URL, log in as **Wall Phone**, tick *Keep me logged in*.
-6. Optional (PLUS): Fully Kiosk → Remote Administration on, then add the
-   **Fully Kiosk Browser** integration in HA to control the screen and
-   brightness from automations (e.g. screen off when nobody's home).
+4. Open the start URL, log in as **Wall Phone**, tick *Keep me logged in*.
+5. Pin it: Settings → Biometrics and security → Other security settings →
+   **Pin windows** on, with *Ask for PIN before unpinning*; then Recent apps →
+   Fully's icon → **Pin this app**. Unpin with Back + Recents held together.
+   Pinning does not survive a reboot; re-pin after a power cut.
+6. Night: Settings → Display → **Dark mode** → scheduled sunset to sunrise
+   (set the Wall Phone user's HA theme to *Auto* so the dashboard follows), and
+   *Adaptive brightness* on.
 
-Settings → Display → *Screen timeout* doesn't matter once Fully keeps the
-screen on. Use the official 25 W charger or any 2 A+ USB-C supply.
+Stuck in Fully's settings-less screen: swipe in from the left edge for its menu.
+
+### Battery
+
+A phone that never unplugs will eventually swell its battery. The Note 9's last
+update (One UI 2.5) probably lacks Samsung's *Protect battery* 85% cap: look
+under Settings → Device care → Battery → ⋮ → Settings. If it's not there,
+charge it from a smart plug that HA switches on a schedule (e.g. a few hours on,
+a few off) rather than leaving it on 100% all day. Use a 2 A+ charger.
 
 ## 3. Devices still to add to HA
 

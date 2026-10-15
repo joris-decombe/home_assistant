@@ -1,6 +1,6 @@
-# Wall-mounted phone (Samsung Galaxy S20, QHD+ 1440x3200 portrait) running
-# Fully Kiosk Browser. Android renders it at 4x, so the page sees a 360x800 CSS
-# viewport: the Home view is laid out to fit that without scrolling.
+# Wall-mounted phone (Samsung Galaxy Note 9, QHD+ 1440x2960 portrait) running
+# Fully Kiosk Browser. Android renders it at 3.5x, so the page sees a ~412x846 CSS
+# viewport; the Home view is laid out to fit 360x800 without scrolling.
 # Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
 # Power figures are read-only; only heat pumps and lights are controllable.
@@ -12,6 +12,7 @@ views:
     type: sections
     max_columns: 1
     sections:
+      # Clock, then current weather and the next days.
       - type: grid
         cards:
           - type: markdown
@@ -19,9 +20,20 @@ views:
             grid_options:
               columns: full
             content: |
+              {% set up = is_state('sun.sun', 'above_horizon') %}
               # {{ now().strftime('%H:%M') }}
-              {{ now().strftime('%A %-d %B') }} · {{ states('weather.forecast_home') | replace('-', ' ') | title }}, {{ state_attr('weather.forecast_home', 'temperature') | round(0) | int }}°C
+              **{{ now().strftime('%A %-d %B') }}** · {{ 'sunset' if up else 'sunrise' }} {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
+          - type: weather-forecast
+            entity: weather.forecast_home
+            show_current: true
+            show_forecast: true
+            forecast_type: daily
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
 
+      # Live power, read-only. The heading opens the Power view.
       - type: grid
         cards:
           - type: heading
@@ -31,38 +43,61 @@ views:
             tap_action:
               action: navigate
               navigation_path: /wall-phone/power
+            badges:
+              - &badge
+                type: entity
+                entity: sensor.alphaess_daily_pv_generation
+                icon: mdi:solar-power
+                color: amber
+                tap_action:
+                  action: none
+              - <<: *badge
+                entity: sensor.alphaess_self_sufficiency
+                icon: mdi:home-battery
+                color: green
           - &power
             type: markdown
             grid_options:
               columns: 6
             content: |
               {% set w = states('sensor.alphaess_instantaneous_generation') | float(0) %}
-              ☀️ Solar
+              <ha-icon icon="mdi:solar-power-variant"></ha-icon> Solar
               ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
           - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_load') | float(0) %}
-              🏠 Using
+              <ha-icon icon="mdi:home-lightning-bolt"></ha-icon> Using
               ## {{ '%.2f kW' | format(w / 1000) if w | abs >= 1000 else '%d W' | format(w) }}
           - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_battery_i_o') | float(0) %}
-              🔋 {{ 'Discharging' if w > 20 else 'Charging' if w < -20 else 'Battery' }}
-              ## {{ states('sensor.alphaess_instantaneous_battery_soc') | float(0) | round(0) | int }}%
+              {% set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
+              {% set lvl = ([[(soc / 10) | round(0) | int, 1] | max, 10] | min) * 10 %}
+              {% set icon = ('battery-charging-' ~ lvl) if w < -20 else ('battery' if lvl == 100 else 'battery-' ~ lvl) %}
+              <ha-icon icon="mdi:{{ icon }}"></ha-icon> {{ 'Charging' if w < -20 else 'Discharging' if w > 20 else 'Battery' }}
+              ## {{ soc | round(0) | int }}%{{ ' · %.1f kW' | format(w | abs / 1000) if w | abs >= 100 else '' }}
           - <<: *power
             content: |
               {% set w = states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0) %}
-              ⚡ {{ 'Importing' if w > 20 else 'Exporting' if w < -20 else 'Grid' }}
+              <ha-icon icon="mdi:{{ 'transmission-tower-import' if w > 20 else 'transmission-tower-export' if w < -20 else 'transmission-tower' }}"></ha-icon> {{ 'Importing' if w > 20 else 'Exporting' if w < -20 else 'Grid' }}
               ## {{ '%.2f kW' | format(w | abs / 1000) if w | abs >= 1000 else '%d W' | format(w | abs) }}
 
+      # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
+      # the full thermostat (modes, fan, swing). Then lights and the bedroom.
       - type: grid
         cards:
           - type: heading
-            heading: Heat pumps
+            heading: Home
             heading_style: subtitle
-            icon: mdi:heat-pump
-          # One row each: icon toggles on/off, -/+ sets the target,
-          # tapping the name opens the full thermostat (modes, fan, swing).
+            icon: mdi:home-thermometer
+            badges:
+              - type: entity
+                entity: sensor.living_room_measured_outdoor_air_temperature
+                name: Outside
+                icon: mdi:thermometer
+                show_name: true
+                tap_action:
+                  action: none
           - &heat_pump
             type: tile
             entity: climate.living_room
@@ -83,13 +118,6 @@ views:
           - <<: *heat_pump
             entity: climate.hall
             name: Hall
-
-      - type: grid
-        cards:
-          - type: heading
-            heading: Lights
-            heading_style: subtitle
-            icon: mdi:lightbulb-group
           - type: tile
             entity: switch.lampe_salon
             name: Lampe salon
@@ -97,6 +125,17 @@ views:
             color: amber
             tap_action:
               action: toggle
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: sensor.cleargras_cn_blt_3_vopvdcqc4800_dk1_temperature_p_2_1
+            name: Jodie's room
+            icon: mdi:bed
+            color: teal
+            state_content:
+              - state
+            tap_action:
+              action: none
             grid_options:
               columns: 6
 
