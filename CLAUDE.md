@@ -47,8 +47,11 @@ they live in `.storage/http`. Change them with the WebSocket call
 
 ## Talking to HA
 
-- The long-lived token and host are in `.claude/settings.local.json` (gitignored;
-  the MCP server config). Read the token from there; never print it.
+- The long-lived token and host are in `.claude/settings.local.json` (gitignored).
+  Read the token from there and never print it. That file's `npx` MCP entry is
+  unused: the `homeassistant` MCP server is HA's built-in one over HTTPS
+  (`claude mcp add`, local scope), behind a Cloudflare Access service token. See
+  `docs/remote-access.md`.
 - Use the WebSocket API (`/api/websocket`) for registries, config entries, energy
   prefs, HACS (`hacs/repository/download`) and Lovelace. Supervisor endpoints
   (add-ons, backups, `/core/restart`) go through WebSocket `supervisor/api`.
@@ -65,6 +68,14 @@ is stopped on purpose (no devices), and the recorder uses `commit_interval: 30`,
 truncated a freshly installed HACS integration to empty files. The `rpi_power`
 "under-voltage" repair is a sticky since-boot flag. One event at power-on is
 normal; repeated events while running mean a power problem.
+
+## Backups
+
+Automatic backups: daily at 03:30, keeping 7, encrypted, stored on
+`hassio.local` and `google_drive.jorisdecombe_gmail_com`. They're configured
+over WebSocket (`backup/config/info`, `backup/config/update`). Google Drive is a
+stopgap: the user wants a scoped **Backblaze B2** bucket long term. Never print
+the encryption key; the owner downloads it from the UI.
 
 ## Wall-phone dashboard
 
