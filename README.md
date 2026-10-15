@@ -20,7 +20,8 @@ helpers, `.storage/`) lives on the Pi. Files here are pushed or copied to it.
 | `scripts/push_dashboard.py` | Pushes a dashboard YAML to HA over the WebSocket API |
 | `rpi/` | Builds a verified HAOS image for a Raspberry Pi ([rpi/README.md](rpi/README.md)) |
 | `docs/` | Wall phone and remote access guides |
-| `vm/`, `docker-compose.yml`, `config/configuration.yaml`, `config/dashboards/smart_home.yaml` | **Legacy** from the earlier Hyper-V VM and Docker setups. The VM is kept, shut down, as a fallback. Not used by the Pi |
+| `config/dashboards/overview.yaml` | The main Overview dashboard: Home (wall-phone content plus rooms, vacuum, EV charger), Energy, Security, Plugs, Media, Sonos, Printer, System |
+| `vm/`, `docker-compose.yml`, `config/configuration.yaml` | **Legacy** from the earlier Hyper-V VM and Docker setups. The VM is kept, shut down, as a fallback. Not used by the Pi |
 
 ## Pushing a dashboard
 
@@ -28,8 +29,9 @@ helpers, `.storage/`) lives on the Pi. Files here are pushed or copied to it.
 HASS_TOKEN=<token> uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
 ```
 
-Always give the dashboard's URL path (`wall-phone`). Without it, the script
-overwrites the main Overview dashboard.
+Give the dashboard's URL path (`wall-phone`). Without one, the script pushes to
+the main Overview dashboard, which is only right for
+`config/dashboards/overview.yaml`.
 
 ## Claude Code MCP
 

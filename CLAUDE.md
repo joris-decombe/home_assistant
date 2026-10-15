@@ -15,8 +15,10 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 - `config/configuration.yaml` and `docker-compose.yml` are leftovers from a
   scratch Docker container (port 8124). The Pi's real `configuration.yaml`
   differs: it loads `packages/` and has the recorder tuning. Edit it on the Pi.
-- `config/dashboards/smart_home.yaml` is **stale** compared with the live Overview
-  dashboard, which has an Energy view not in the repo. Don't push it.
+- `config/dashboards/overview.yaml` is the source of truth for the main
+  Overview dashboard (pushed with no `url_path`). Its Home headline and wind
+  chart are copies of the wall phone's: change `wall_phone.yaml` first, then
+  copy them across.
 
 ## Pushing changes to the Pi
 
@@ -24,8 +26,9 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 ```bash
 HASS_TOKEN=... uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
 ```
-Always pass the dashboard `url_path`. Without it the script overwrites the
-**Overview** dashboard. It creates the dashboard if it doesn't exist.
+Pass the dashboard's `url_path` (e.g. `wall-phone`). Without one it pushes to the
+main **Overview** dashboard, which is only right for
+`config/dashboards/overview.yaml`. It creates the dashboard if it doesn't exist.
 
 **Packages** (`config/packages/*.yaml` → `/config/packages/` on the Pi, loaded by
 `homeassistant: packages: !include_dir_named packages`): copy the file over host
