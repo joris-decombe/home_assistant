@@ -18,10 +18,6 @@ config/.ha_run.lock
 config/deps/
 config/tts/
 
-# VM files (large binary images)
-vm/*.vhdx
-vm/*.vhdx.zip
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -32,6 +28,13 @@ Thumbs.db
 *.swp
 *.swo
 
-# Raspberry Pi image build
+# Raspberry Pi image build (image.env may hold the Wi-Fi password)
 rpi/image.env
 rpi/build/
+
+# Hyper-V VM disks
+vm/*.vhdx
+vm/*.zip
+
+# Python
+__pycache__/
