@@ -332,20 +332,21 @@ views:
             name: Hall
           # Lights: tap toggles, hold opens brightness / colour temperature.
           # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
-          # Off / Night (moonlight) / Full for both ceiling lights, from
-          # select.ceiling_lights (config/packages/wall_phone.yaml).
+          # Both ceiling lights (select.ceiling_lights and its scripts in
+          # config/packages/wall_phone.yaml): tap = on/off, tap the icon =
+          # Night (moonlight) <-> Full. The icon shows the current mode.
           - type: tile
             entity: select.ceiling_lights
             name: Ceiling lights
-            icon: mdi:ceiling-light-multiple
             color: amber
             tap_action:
-              action: none
+              action: perform-action
+              perform_action: script.ceiling_lights_toggle
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.ceiling_lights_flip_mode
             grid_options:
-              columns: full
-            features_position: inline
-            features:
-              - type: select-options
+              columns: 6
           - &light
             type: tile
             entity: light.yeelink_sg_270878066_bslamp2_s_2_light

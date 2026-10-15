@@ -1,5 +1,5 @@
 # Wall-phone dashboard helpers: the hourly forecast sensor and the ceiling
-# lights' Off / Night / Full control. Loaded as a package: configuration.yaml
+# lights' Off / Night / Full control with its one-tap scripts. Loaded as a package: configuration.yaml
 # on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
 # this file to /config/packages/ and reload template entities.
 
@@ -48,7 +48,9 @@ template:
   - select:
       - name: Ceiling lights
         unique_id: wall_phone_ceiling_lights_mode
-        icon: mdi:ceiling-light-multiple
+        icon: >
+          {{ {'Night': 'mdi:weather-night', 'Full': 'mdi:ceiling-light-multiple'}
+             .get(this.state, 'mdi:ceiling-light-multiple-outline') }}
         options: "{{ ['Off', 'Night', 'Full'] }}"
         state: >
           {% set on = ['light.yeelink_sg_594287415_ceiling22_s_2_light',
@@ -82,3 +84,35 @@ template:
                 data:
                   effect: Day
                   brightness_pct: 100
+
+script:
+  # One tap on the wall phone's ceiling-light card: both lights on (in their
+  # last mode) or both off.
+  ceiling_lights_toggle:
+    alias: Ceiling lights on/off
+    icon: mdi:ceiling-light-multiple
+    sequence:
+      - if: "{{ is_state('select.ceiling_lights', 'Off') }}"
+        then:
+          - action: light.turn_on
+            target:
+              entity_id:
+                - light.yeelink_sg_594287415_ceiling22_s_2_light
+                - light.yeelink_sg_594289920_ceiling22_s_2_light
+        else:
+          - action: select.select_option
+            target:
+              entity_id: select.ceiling_lights
+            data:
+              option: "Off"
+
+  # One tap on the card's icon: Night <-> Full (Night when off).
+  ceiling_lights_flip_mode:
+    alias: Ceiling lights night/full
+    icon: mdi:weather-night
+    sequence:
+      - action: select.select_option
+        target:
+          entity_id: select.ceiling_lights
+        data:
+          option: "{{ 'Full' if is_state('select.ceiling_lights', 'Night') else 'Night' }}"
