@@ -41,10 +41,11 @@ views:
               <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**<br>
               {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
-          # Next 24 h: wind (blue, km/h, left axis) labelled with its direction
-          # every 3 h, temperature (orange, °C, right axis), rain as pale bars
-          # along the bottom. Needs the ApexCharts card (HACS); the direction
-          # labels read sensor.hourly_forecast in the same order as the points.
+          # Next 24 h: a row of condition icons along the top every 3 h, wind
+          # (blue, km/h, left axis) labelled with its direction, temperature
+          # (orange, °C, right axis) and rain as pale bars along the bottom.
+          # Needs the ApexCharts card (HACS); the labels read
+          # sensor.hourly_forecast in the same order as the points.
           - type: custom:apexcharts-card
             graph_span: 24h
             span:
@@ -55,7 +56,7 @@ views:
               columns: full
             apex_config:
               chart:
-                height: 175
+                height: 200
                 parentHeightOffset: 0
               legend:
                 show: false
@@ -104,14 +105,14 @@ views:
                   opacityTo: 0.02
                   stops: [0, 100]
               dataLabels:
-                enabledOnSeries: [0]
+                enabledOnSeries: [0, 3]
                 background:
                   enabled: false
                 offsetY: -8
                 style:
-                  fontSize: 11px
+                  fontSize: 12px
                   fontWeight: 600
-                  colors: ['#1565c0']
+                  colors: ['#1565c0', '#000', '#000', '#000']
                 formatter: |
                   EVAL:function (val, opts) {
                     const i = opts.dataPointIndex;
@@ -119,6 +120,12 @@ views:
                     const hass = document.querySelector('home-assistant').hass;
                     const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
                     if (!f) return '';
+                    if (opts.seriesIndex === 3) return {
+                      'clear-night': '🌙', 'cloudy': '☁️', 'exceptional': '⚠️', 'fog': '🌫️',
+                      'hail': '🌨️', 'lightning': '🌩️', 'lightning-rainy': '⛈️',
+                      'partlycloudy': '⛅', 'pouring': '☔', 'rainy': '🌧️', 'snowy': '❄️',
+                      'snowy-rainy': '🌨️', 'sunny': '☀️', 'windy': '🌬️', 'windy-variant': '🌬️',
+                    }[f.condition] || '';
                     const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
                     return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
                   }
@@ -127,9 +134,9 @@ views:
               # goes beyond them.
               - id: wind
                 min: 0
-                max: ~80
+                max: ~100
                 apex_config:
-                  tickAmount: 4
+                  tickAmount: 5
                   labels:
                     style:
                       colors: '#1e88e5'
@@ -138,9 +145,9 @@ views:
               - id: temp
                 opposite: true
                 min: ~0
-                max: ~20
+                max: ~25
                 apex_config:
-                  tickAmount: 4
+                  tickAmount: 5
                   labels:
                     style:
                       colors: '#fb8c00'
@@ -150,6 +157,10 @@ views:
                 show: false
                 min: 0
                 max: 10
+              - id: sky
+                show: false
+                min: 0
+                max: 1
             series:
               - entity: sensor.hourly_forecast
                 name: Wind
@@ -182,6 +193,16 @@ views:
                 unit: ' mm'
                 data_generator: |
                   return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+              - entity: sensor.hourly_forecast
+                name: Sky
+                yaxis_id: sky
+                type: line
+                color: transparent
+                stroke_width: 0
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
 
       # Live power, read-only. The heading opens the Power view.
       - type: grid
