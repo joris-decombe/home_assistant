@@ -16,14 +16,17 @@ browser ──HTTPS──▶ Cloudflare (Access) ──tunnel──▶ Cloudflar
 |---|---|
 | HA add-on | **Cloudflared** (`9074a9fa_cloudflared`, repo `github.com/brenner-tobias/ha-addons`): `external_hostname: home.dx2-66.com`, `tunnel_name: homeassistant`. Locally managed tunnel: on first start it logs a Cloudflare login URL; approving it for the `dx2-66.com` zone creates the tunnel and the `home` DNS record. |
 | HA HTTP settings | `use_x_forwarded_for: true`, `trusted_proxies: [172.30.33.0/24]` (the add-on network), `ip_ban_enabled: true`, `login_attempts_threshold: 5`. Since 2026, HA keeps these in `.storage/http` and **ignores an `http:` block in `configuration.yaml`** (it raises a repair issue). Change them through the `http/config/configure` websocket call, which stores them as *pending* and restarts. Then confirm with `http/config/promote` before `revert_at`, or HA reverts on its own. |
-| Cloudflare Zero Trust | Access application **Home Assistant** for `home.dx2-66.com`, policy *Allow* for the owner's email, login by one-time PIN. |
+| Cloudflare Zero Trust | Access application **Home Assistant** for `home.dx2-66.com`. Policy action **Allow**: *Include* Emails = the owner's email, *Require* Country = New Zealand, no *Exclude* rules. Sign-in is the Cloudflare account (security key), which is this Zero Trust org's identity provider. |
 
 ## Notes
 
 - Create or keep the Access application **before** the tunnel is up, so the
   hostname is never public without it.
+- Keep the policy to Include + Require. An *Exclude* of "Everyone" or of the
+  only login method blocks everyone, and a **Bypass** action skips sign-in
+  altogether.
 - Turn on two-factor auth for the HA owner account (Profile → Security), since
-  HA's login is the second gate.
+  HA's login is the second gate. The wall-phone user is local-network only.
 - The HA Companion app can't pass Access's browser login. To use it remotely,
   add an Access policy that bypasses its paths, or use a service token.
 - Failed logins through the tunnel ban the real client IP (via
