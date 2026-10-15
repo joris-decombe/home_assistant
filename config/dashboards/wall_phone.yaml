@@ -415,10 +415,59 @@ views:
             heading: Right now
             heading_style: subtitle
             icon: mdi:flash
+          # Splits the house load into the Energy dashboard's devices, using
+          # each device's live power sensor (Settings > Dashboards > Energy).
           - type: power-sankey
             layout: vertical
             grid_options:
               columns: full
+
+      # Live power per device, read-only. The heat pumps report energy only,
+      # so theirs is a 1 h average derived from their kWh counters.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Devices now
+            heading_style: subtitle
+            icon: mdi:power-plug
+          - &device
+            type: tile
+            entity: sensor.living_room_heat_pump_power
+            name: Living room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *device
+            entity: sensor.dining_room_heat_pump_power
+            name: Dining room heat pump
+          - <<: *device
+            entity: sensor.smart_plug_ordi_current_consumption
+            name: Computer
+            icon: mdi:desktop-tower-monitor
+            color: blue
+          - <<: *device
+            entity: sensor.smart_plug_tv_current_consumption
+            name: TV
+            icon: mdi:television
+            color: blue
+          - <<: *device
+            entity: sensor.lampe_salon_current_consumption
+            name: Lampe salon
+            icon: mdi:floor-lamp
+            color: amber
+          - <<: *device
+            entity: sensor.aquarium_light_current_consumption
+            name: Aquarium light
+            icon: mdi:lightbulb
+            color: amber
+          - <<: *device
+            entity: sensor.aquarium_pump_current_consumption
+            name: Aquarium pump
+            icon: mdi:pump
+            color: teal
 
       - type: grid
         cards:
@@ -469,3 +518,18 @@ views:
             name: Imported
             icon: mdi:transmission-tower-import
             color: brown
+          - <<: *today
+            entity: sensor.heat_pumps_today
+            name: Heat pumps
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *today
+            entity: sensor.smart_plug_ordi_today_s_consumption
+            name: Computer
+            icon: mdi:desktop-tower-monitor
+            color: blue
+          - <<: *today
+            entity: sensor.smart_plug_tv_today_s_consumption
+            name: TV
+            icon: mdi:television
+            color: blue
