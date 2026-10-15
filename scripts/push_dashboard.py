@@ -2,7 +2,11 @@
 """Push the dashboard YAML config to Home Assistant via WebSocket API.
 
 Usage:
-    uv run --with pyyaml --with websockets scripts/push_dashboard.py
+    uv run --with pyyaml --with websockets scripts/push_dashboard.py [YAML_FILE] [URL_PATH]
+
+YAML_FILE defaults to config/dashboards/smart_home.yaml. URL_PATH names the
+dashboard to overwrite (e.g. wall-phone); it is created if missing. Without
+URL_PATH the default Overview dashboard is overwritten.
 """
 
 import asyncio
@@ -15,20 +19,19 @@ import yaml
 import websockets
 
 
-async def push_dashboard():
-    hass_host = os.environ.get("HASS_HOST", "http://192.168.0.35:8123")
+async def push_dashboard(dashboard_path, url_path):
+    hass_host = os.environ.get("HASS_HOST", "http://192.168.68.68:8123")
     hass_token = os.environ.get("HASS_TOKEN")
 
     if not hass_token:
         print("Error: HASS_TOKEN environment variable is required")
         sys.exit(1)
 
-    dashboard_path = Path(__file__).parent.parent / "config" / "dashboards" / "smart_home.yaml"
     if not dashboard_path.exists():
         print(f"Error: Dashboard file not found: {dashboard_path}")
         sys.exit(1)
 
-    with open(dashboard_path) as f:
+    with open(dashboard_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     ws_url = hass_host.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
@@ -43,9 +46,30 @@ async def push_dashboard():
             print(f"Auth failed: {msg}")
             sys.exit(1)
 
+        if url_path:
+            await ws.send(json.dumps({"id": 1, "type": "lovelace/dashboards/list"}))
+            msg = json.loads(await ws.recv())
+            if url_path not in {d["url_path"] for d in msg["result"]}:
+                await ws.send(json.dumps({
+                    "id": 2,
+                    "type": "lovelace/dashboards/create",
+                    "url_path": url_path,
+                    "title": config.get("title", url_path),
+                    "icon": "mdi:cellphone-screenshot",
+                    "show_in_sidebar": True,
+                    "require_admin": False,
+                    "mode": "storage",
+                }))
+                msg = json.loads(await ws.recv())
+                if not msg.get("success"):
+                    print(f"Failed to create dashboard {url_path}: {msg}")
+                    sys.exit(1)
+                print(f"Created dashboard {url_path}")
+
         await ws.send(json.dumps({
-            "id": 1,
+            "id": 3,
             "type": "lovelace/config/save",
+            "url_path": url_path,
             "config": config,
         }))
         msg = json.loads(await ws.recv())
@@ -57,4 +81,6 @@ async def push_dashboard():
 
 
 if __name__ == "__main__":
-    asyncio.run(push_dashboard())
+    default = Path(__file__).parent.parent / "config" / "dashboards" / "smart_home.yaml"
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else default
+    asyncio.run(push_dashboard(path, sys.argv[2] if len(sys.argv) > 2 else None))
