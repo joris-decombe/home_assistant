@@ -41,15 +41,20 @@ views:
               <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**<br>
               {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
-          # Next 24 h: a row of condition icons along the top every 3 h, wind
-          # (blue, km/h, left axis) labelled with its direction, temperature
-          # (orange, °C, right axis) and rain as pale bars along the bottom.
-          # Needs the ApexCharts card (HACS); the labels read
-          # sensor.hourly_forecast in the same order as the points.
+          # Last 6 h (grey band, dashed: what the weather entity recorded) and
+          # the next 24 h: a row of condition icons along the top every 3 h,
+          # wind (blue, km/h, left axis) labelled with its direction,
+          # temperature (orange, °C, right axis) and rain as pale bars. Needs
+          # the ApexCharts card (HACS); the labels read sensor.hourly_forecast
+          # in the same order as the points.
           - type: custom:apexcharts-card
-            graph_span: 24h
+            graph_span: 30h
             span:
               start: hour
+              offset: -6h
+            now:
+              show: true
+              color: '#9e9e9e'
             header:
               show: false
             grid_options:
@@ -98,7 +103,7 @@ views:
                   style:
                     colors: var(--secondary-text-color)
               fill:
-                type: [gradient, solid, solid]
+                type: [gradient, solid, solid, solid, solid, solid, solid]
                 gradient:
                   shadeIntensity: 0
                   opacityFrom: 0.35
@@ -203,6 +208,39 @@ views:
                   datalabels: true
                 data_generator: |
                   return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
+              # Observed so far (dashed), from the weather entity's history.
+              - entity: weather.forecast_home
+                attribute: wind_speed
+                name: Wind so far
+                yaxis_id: wind
+                type: line
+                color: '#1e88e5'
+                curve: smooth
+                stroke_width: 2
+                stroke_dash: 4
+                extend_to: now
+              - entity: weather.forecast_home
+                attribute: temperature
+                name: Temperature so far
+                yaxis_id: temp
+                type: line
+                color: '#fb8c00'
+                curve: smooth
+                stroke_width: 2
+                stroke_dash: 4
+                extend_to: now
+              # Grey band from the chart's start to now.
+              - entity: sensor.hourly_forecast
+                name: Past
+                yaxis_id: sky
+                type: area
+                color: '#9e9e9e'
+                opacity: 0.12
+                stroke_width: 0
+                curve: stepline
+                extend_to: false
+                data_generator: |
+                  return [[start.getTime(), 1], [new Date().getTime(), 1]];
 
       # Live power, read-only. The heading opens the Power view.
       - type: grid
