@@ -422,8 +422,9 @@ views:
             grid_options:
               columns: full
 
-      # Live power per device, read-only. The heat pumps report energy only,
-      # so theirs is a 1 h average derived from their kWh counters.
+      # Live power per device, read-only. The EV charger is Evnex's metered
+      # power. The heat pumps report energy only, so theirs is a 1 h average
+      # derived from their kWh counters.
       - type: grid
         cards:
           - type: heading
@@ -432,17 +433,24 @@ views:
             icon: mdi:power-plug
           - &device
             type: tile
-            entity: sensor.living_room_heat_pump_power
-            name: Living room heat pump
-            icon: mdi:heat-pump
-            color: deep-orange
+            entity: sensor.garage_joris_home_charger_metered_power
+            name: EV charger
+            icon: mdi:ev-station
+            color: green
             tap_action:
               action: none
             grid_options:
               columns: 6
           - <<: *device
+            entity: sensor.living_room_heat_pump_power
+            name: Living room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *device
             entity: sensor.dining_room_heat_pump_power
             name: Dining room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
           - <<: *device
             entity: sensor.smart_plug_ordi_current_consumption
             name: Computer
@@ -518,6 +526,11 @@ views:
             name: Imported
             icon: mdi:transmission-tower-import
             color: brown
+          - <<: *today
+            entity: sensor.evnex_residential_nz_total_power_usage_today
+            name: EV charged
+            icon: mdi:ev-station
+            color: green
           - <<: *today
             entity: sensor.heat_pumps_today
             name: Heat pumps
