@@ -1,8 +1,9 @@
 # Wall-phone dashboard helpers: the hourly forecast sensor, the ceiling
 # lights' Off / Night / Full control with its one-tap scripts, today's
-# heat-pump energy and the battery's charge rate. Loaded as a package: configuration.yaml
-# on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
-# this file to /config/packages/ and reload template entities.
+# heat-pump energy, the battery's charge rate and the car charger's status.
+# The iPad dashboard uses them too. Loaded as a package: configuration.yaml on
+# the Pi has `homeassistant: packages: !include_dir_named packages`. Copy this
+# file to /config/packages/ and reload template entities.
 
 template:
   # The next 24 hours of met.no forecast, trimmed to what the wind strip on the
@@ -122,6 +123,34 @@ template:
           {% endif %}
         availability: "{{ has_value('sensor.alphaess_instantaneous_battery_soc') }}"
         state: "{{ states('sensor.alphaess_instantaneous_battery_soc') | float | round(1) }}"
+
+  # The Evnex charger in one word or two ("Charging 7.2 kW", "Paused by car",
+  # "Unplugged"), for the Car cards on the wall phone and iPad. The connector
+  # status is OCPP's: suspended_ev means the car stopped taking power (full or
+  # its own schedule), suspended_evse that the charger is holding off (its
+  # off-peak schedule). Evnex polls its cloud, so it lags by up to ~5 minutes.
+  - sensor:
+      - name: Car charger
+        unique_id: wall_phone_car_charger
+        default_entity_id: sensor.car_charger
+        icon: >
+          {{ {'Paused by car': 'mdi:car-electric', 'Finished': 'mdi:car-electric',
+              'Waiting to charge': 'mdi:timer-sand', 'Starting': 'mdi:ev-plug-type2',
+              'Plugged in': 'mdi:ev-plug-type2', 'Unplugged': 'mdi:power-plug-off-outline',
+              'Fault': 'mdi:alert-circle-outline', 'Offline': 'mdi:cloud-off-outline'}
+             .get(this.state, 'mdi:battery-charging' if this.state is string and this.state.startswith('Charging') else 'mdi:ev-station') }}
+        state: >
+          {% set c = 'sensor.garage_joris_home_charger_' %}
+          {% set st = states(c ~ 'connector_status') %}
+          {% if is_state(c ~ 'charger_network_status', 'offline') %}Offline
+          {% elif st == 'charging' or is_state('binary_sensor.garage_joris_home_charger_charging', 'on') %}Charging {{ '%.1f' | format(states(c ~ 'metered_power') | float(0)) }} kW
+          {% elif st == 'suspended_ev' %}Paused by car
+          {% elif st == 'suspended_evse' %}Waiting to charge
+          {% elif st == 'preparing' %}Starting
+          {% elif st == 'finishing' %}Finished
+          {% elif st == 'faulted' %}Fault
+          {% elif is_state('binary_sensor.garage_joris_home_charger_plugged_in', 'on') %}Plugged in
+          {% else %}Unplugged{% endif %}
 
 script:
   # One tap on the wall phone's ceiling-light card: both lights on (in their

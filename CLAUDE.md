@@ -18,7 +18,8 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 - `config/dashboards/overview.yaml` is the source of truth for the main
   Overview dashboard (pushed with no `url_path`). Its Home headline and wind
   chart are copies of the wall phone's: change `wall_phone.yaml` first, then
-  copy them across.
+  copy them across. The same goes for `config/dashboards/ipad.yaml`
+  (`ipad-home`), which is the wall phone's dashboard in three columns.
 
 ## Pushing changes to the Pi
 
@@ -28,7 +29,8 @@ HASS_TOKEN=... uv run --with pyyaml --with websockets scripts/push_dashboard.py 
 ```
 Pass the dashboard's `url_path` (e.g. `wall-phone`). Without one it pushes to the
 main **Overview** dashboard, which is only right for
-`config/dashboards/overview.yaml`. It creates the dashboard if it doesn't exist.
+`config/dashboards/overview.yaml`. It creates the dashboard if it doesn't exist
+(an optional third argument sets its sidebar icon, e.g. `mdi:tablet`).
 
 **Packages** (`config/packages/*.yaml` → `/config/packages/` on the Pi, loaded by
 `homeassistant: packages: !include_dir_named packages`): copy the file over host
@@ -96,6 +98,9 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
 - `sensor.home_battery`: the Alpha ESS charge level, with a templated name
   ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") and icon, so the
   Battery sensor card on both Home views shows the rate too.
+- `sensor.car_charger`: the Evnex charger's state in words ("Charging 7.2 kW",
+  "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
+  The Car section's *Charge now* switch is the one charger control on it.
 
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
