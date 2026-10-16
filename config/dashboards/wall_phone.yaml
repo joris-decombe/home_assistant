@@ -1,9 +1,11 @@
 # Wall-mounted phone (Samsung Galaxy Note 9, QHD+ 1440x2960 portrait) running
 # Fully Kiosk Browser. Android renders it at 3.5x, so the page sees a ~412x846 CSS
-# viewport. The Home view puts clock + wind, power and the heat pumps first.
+# viewport. The Home view puts clock + wind, power and the heat pumps first,
+# then the car charger.
 # Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
-# Power figures are read-only; only heat pumps and lights are controllable.
+# Power figures are read-only; only heat pumps, lights, the vacuum and the
+# car charger's Charge now are controllable.
 title: Wall Phone
 views:
   - title: Home
@@ -402,6 +404,50 @@ views:
             name: Vacuum
             icon: mdi:robot-vacuum
             color: green
+            grid_options:
+              columns: 6
+
+      # The Evnex charger: what it's doing (sensor.car_charger in the
+      # wall-phone package), the energy added this session, and Charge now
+      # (overrides the charger's off-peak schedule; off returns to it).
+      # Evnex polls its cloud, so changes show up to ~5 minutes late.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Car
+            heading_style: subtitle
+            icon: mdi:car-electric
+            badges:
+              - type: entity
+                entity: sensor.evnex_residential_nz_total_power_usage_today
+                icon: mdi:ev-station
+                color: green
+                tap_action:
+                  action: none
+          - type: tile
+            entity: sensor.car_charger
+            name: Charger
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.garage_joris_home_charger_session_energy_added
+            name: This session
+            icon: mdi:battery-charging
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: switch.garage_joris_home_charger_charge_now
+            name: Charge now
+            icon: mdi:lightning-bolt
+            color: green
+            tap_action:
+              action: toggle
             grid_options:
               columns: 6
 

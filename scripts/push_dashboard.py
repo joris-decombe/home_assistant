@@ -2,11 +2,12 @@
 """Push the dashboard YAML config to Home Assistant via WebSocket API.
 
 Usage:
-    uv run --with pyyaml --with websockets scripts/push_dashboard.py [YAML_FILE] [URL_PATH]
+    uv run --with pyyaml --with websockets scripts/push_dashboard.py [YAML_FILE] [URL_PATH] [ICON]
 
 YAML_FILE defaults to config/dashboards/overview.yaml. URL_PATH names the
-dashboard to overwrite (e.g. wall-phone); it is created if missing. Without
-URL_PATH the default Overview dashboard is overwritten.
+dashboard to overwrite (e.g. wall-phone); it is created if missing, with ICON
+in the sidebar (default mdi:cellphone-screenshot). Without URL_PATH the default
+Overview dashboard is overwritten.
 """
 
 import asyncio
@@ -19,7 +20,7 @@ import yaml
 import websockets
 
 
-async def push_dashboard(dashboard_path, url_path):
+async def push_dashboard(dashboard_path, url_path, icon):
     hass_host = os.environ.get("HASS_HOST", "http://192.168.68.68:8123")
     hass_token = os.environ.get("HASS_TOKEN")
 
@@ -55,7 +56,7 @@ async def push_dashboard(dashboard_path, url_path):
                     "type": "lovelace/dashboards/create",
                     "url_path": url_path,
                     "title": config.get("title", url_path),
-                    "icon": "mdi:cellphone-screenshot",
+                    "icon": icon,
                     "show_in_sidebar": True,
                     "require_admin": False,
                     "mode": "storage",
@@ -83,4 +84,6 @@ async def push_dashboard(dashboard_path, url_path):
 if __name__ == "__main__":
     default = Path(__file__).parent.parent / "config" / "dashboards" / "overview.yaml"
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else default
-    asyncio.run(push_dashboard(path, sys.argv[2] if len(sys.argv) > 2 else None))
+    url_path = sys.argv[2] if len(sys.argv) > 2 else None
+    icon = sys.argv[3] if len(sys.argv) > 3 else "mdi:cellphone-screenshot"
+    asyncio.run(push_dashboard(path, url_path, icon))
