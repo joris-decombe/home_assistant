@@ -2,12 +2,13 @@
 
 An old Galaxy Note 9 on the wall, permanently on the charger, showing the
 **Wall Phone** dashboard (`config/dashboards/wall_phone.yaml`): clock and weather,
-live solar / load / battery / grid with a power-flow chart, and tap-to-toggle
-tiles for lights and heat pumps. Power figures are read-only. The **Music**
-tab picks which Sonos rooms play Spotify (any mix, or *Everywhere*). The
-**Kids** tab has Jodie's Yoto player and one-tap stories (Tintin, Les
-odyssées, Oli…). To choose anything else, tap a player, then *Browse media*.
-Its helpers are in [`config/packages/music.yaml`](../config/packages/music.yaml).
+live solar / load / battery / grid with a power-flow chart, tap-to-toggle
+tiles for lights and heat pumps, and the car charger (status, energy this
+session, Charge now). Power figures are read-only. The **Music** tab picks
+which Sonos rooms play Spotify (any mix, or *Everywhere*). The **Kids** tab has
+Jodie's Yoto player and one-tap stories (Tintin, Les odyssées, Oli…). To
+choose anything else, tap a player, then *Browse media*. Its helpers are in
+[`config/packages/music.yaml`](../config/packages/music.yaml).
 
 Push changes to the dashboard with:
 
@@ -18,7 +19,8 @@ uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboar
 (`HASS_TOKEN` must be set. Always pass `wall-phone`: without it the script
 overwrites the main Overview dashboard.)
 
-The wind strip reads `sensor.hourly_forecast`, defined in
+The wind strip reads `sensor.hourly_forecast` and the Car card
+`sensor.car_charger` (Evnex's connector status in plain words), both defined in
 [`config/packages/wall_phone.yaml`](../config/packages/wall_phone.yaml). On the
 Pi it lives in `/config/packages/`, loaded by `homeassistant: packages:
 !include_dir_named packages` in `configuration.yaml`, and the recorder excludes
@@ -84,3 +86,19 @@ The wind chart uses the **ApexCharts card** (HACS, frontend only).
 
 Add each new light or `climate.*` entity as a tile under *Lights* or a new
 *Heat pumps* section in `wall_phone.yaml` and push again.
+
+## 4. iPad
+
+`config/dashboards/ipad.yaml` is the same dashboard laid out for an iPad: three
+columns in landscape, two in portrait, a taller wind chart, and the Home
+section split into *Heat pumps* and *Lights*. It uses the same package helpers.
+Change a card on the wall phone first, then copy it across. Push it with:
+
+```bash
+uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/ipad.yaml ipad-home mdi:tablet
+```
+
+Open `http://192.168.68.68:8123/ipad-home/home` (Safari, *Add to Home Screen*
+for full screen, or the Companion app). Log in as **Wall Phone** or another
+non-admin user and set that user's *Dashboard* to **iPad** to make it the
+start page.

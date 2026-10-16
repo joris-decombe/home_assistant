@@ -1,0 +1,620 @@
+# The wall phone's dashboard (wall_phone.yaml) laid out for an iPad: three
+# columns in landscape (~1180x820 CSS on a 10.9"/11" iPad), two in portrait.
+# Same cards and the same controls; the clock + wind headline and the chart
+# are copies of the wall phone's (chart taller here): change them there first,
+# then copy them across.
+# Pushed to the "ipad-home" dashboard:
+#   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/ipad.yaml ipad-home mdi:tablet
+# Power figures are read-only; only heat pumps, lights, the vacuum and the
+# car charger's Charge now are controllable.
+title: iPad
+views:
+  - title: Home
+    path: home
+    icon: mdi:home
+    type: sections
+    max_columns: 3
+    dense_section_placement: true
+    sections:
+      # Clock with the next sunset (by day) or sunrise (at night) and current
+      # weather, then the wind. The headline flags a wind
+      # change of 90 degrees or more (e.g. northerly to southerly) and the
+      # 24 h peak; the chart below shows the next 24 h.
+      # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
+      - type: grid
+        column_span: 2
+        cards:
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set fc = state_attr('sensor.hourly_forecast', 'forecast') or [] %}
+              {%- set dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] %}
+              {%- set arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'] %}
+              {%- set icons = {'clear-night': 'weather-night', 'cloudy': 'weather-cloudy', 'exceptional': 'alert-circle-outline', 'fog': 'weather-fog', 'hail': 'weather-hail', 'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'partlycloudy': 'weather-partly-cloudy', 'pouring': 'weather-pouring', 'rainy': 'weather-rainy', 'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'sunny': 'weather-sunny', 'windy': 'weather-windy', 'windy-variant': 'weather-windy-variant'} %}
+              {%- macro sector(b) %}{{ ((b | float(0) + 22.5) // 45) | int % 8 }}{% endmacro %}
+              {%- macro when(dt) %}{% set l = dt | as_datetime | as_local %}{{ l.strftime('%H:%M') if l.date() == now().date() else l.strftime('%a %H:%M') }}{% endmacro %}
+              {%- set w = states.weather.forecast_home.attributes %}
+              {%- set i0 = sector(w.wind_bearing) | int %}
+              {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
+              {%- for f in fc %}
+              {%- set d = (sector(f.wind_bearing) | int - i0) % 8 %}
+              {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
+              {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
+              {%- endfor %}
+              {%- set up = is_state('sun.sun', 'above_horizon') %}
+              ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
+              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**
+              {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
+              {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
+              {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
+          # Last 6 h (grey band, dashed: what the weather entity recorded) and
+          # the next 24 h: a row of condition icons along the top every 3 h,
+          # wind (blue, km/h, left axis) labelled with its direction,
+          # temperature (orange, °C, right axis) and rain as a pale blue band. Needs
+          # the ApexCharts card (HACS); the labels read sensor.hourly_forecast
+          # in the same order as the points.
+          - type: custom:apexcharts-card
+            graph_span: 30h
+            span:
+              start: hour
+              offset: -6h
+            now:
+              show: true
+              color: '#9e9e9e'
+            header:
+              show: false
+            grid_options:
+              columns: full
+            apex_config:
+              chart:
+                height: 280
+                parentHeightOffset: 0
+              legend:
+                show: false
+              # Units above each axis; tick labels are plain numbers.
+              title:
+                text: km/h
+                align: left
+                offsetX: 4
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#1e88e5'
+              subtitle:
+                text: °C
+                align: right
+                offsetX: -4
+                offsetY: 0
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#fb8c00'
+              tooltip:
+                enabled: false
+              grid:
+                borderColor: rgba(127, 127, 127, 0.2)
+                strokeDashArray: 3
+                padding:
+                  left: 6
+                  right: 14
+                  top: -14
+                  bottom: -4
+              xaxis:
+                axisBorder:
+                  show: false
+                axisTicks:
+                  show: false
+                labels:
+                  format: HH:mm
+                  style:
+                    colors: var(--secondary-text-color)
+              fill:
+                type: [gradient, solid, solid, solid, solid, solid, solid]
+                gradient:
+                  shadeIntensity: 0
+                  opacityFrom: 0.35
+                  opacityTo: 0.02
+                  stops: [0, 100]
+              dataLabels:
+                enabledOnSeries: [0, 3]
+                background:
+                  enabled: false
+                offsetY: -8
+                style:
+                  fontSize: 12px
+                  fontWeight: 600
+                  colors: ['#1565c0', '#000', '#000', '#000']
+                formatter: |
+                  EVAL:function (val, opts) {
+                    const i = opts.dataPointIndex;
+                    if (i % 3 !== 0) return '';
+                    const hass = document.querySelector('home-assistant').hass;
+                    const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
+                    if (!f) return '';
+                    if (opts.seriesIndex === 3) return {
+                      'clear-night': '🌙', 'cloudy': '☁️', 'exceptional': '⚠️', 'fog': '🌫️',
+                      'hail': '🌨️', 'lightning': '🌩️', 'lightning-rainy': '⛈️',
+                      'partlycloudy': '⛅', 'pouring': '☔', 'rainy': '🌧️', 'snowy': '❄️',
+                      'snowy-rainy': '🌨️', 'sunny': '☀️', 'windy': '🌬️', 'windy-variant': '🌬️',
+                    }[f.condition] || '';
+                    const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
+                    return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
+                  }
+            yaxis:
+              # Soft ranges (~): round ticks, stretched only if the forecast
+              # goes beyond them.
+              - id: wind
+                min: 0
+                max: ~100
+                apex_config:
+                  tickAmount: 5
+                  labels:
+                    style:
+                      colors: '#1e88e5'
+                    formatter: |
+                      EVAL:function (v) { return Math.round(v); }
+              - id: temp
+                opposite: true
+                min: ~0
+                max: ~25
+                apex_config:
+                  tickAmount: 5
+                  labels:
+                    style:
+                      colors: '#fb8c00'
+                    formatter: |
+                      EVAL:function (v) { return Math.round(v); }
+              - id: rain
+                show: false
+                min: 0
+                max: ~4
+              - id: sky
+                show: false
+                min: 0
+                max: 1
+            series:
+              - entity: sensor.hourly_forecast
+                name: Wind
+                yaxis_id: wind
+                type: area
+                color: '#1e88e5'
+                curve: smooth
+                stroke_width: 2.5
+                unit: ' km/h'
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+              - entity: sensor.hourly_forecast
+                name: Temperature
+                yaxis_id: temp
+                type: line
+                color: '#fb8c00'
+                curve: smooth
+                stroke_width: 2
+                unit: ' °C'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+              - entity: sensor.hourly_forecast
+                name: Rain
+                yaxis_id: rain
+                type: area
+                curve: stepline
+                color: '#42a5f5'
+                opacity: 0.35
+                stroke_width: 0
+                unit: ' mm'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+              - entity: sensor.hourly_forecast
+                name: Sky
+                yaxis_id: sky
+                type: line
+                color: transparent
+                stroke_width: 0
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
+              # Observed so far (dashed), from the weather entity's history.
+              - entity: weather.forecast_home
+                attribute: wind_speed
+                name: Wind so far
+                yaxis_id: wind
+                type: line
+                color: '#1e88e5'
+                curve: smooth
+                stroke_width: 2
+                stroke_dash: 4
+                extend_to: now
+              - entity: weather.forecast_home
+                attribute: temperature
+                name: Temperature so far
+                yaxis_id: temp
+                type: line
+                color: '#fb8c00'
+                curve: smooth
+                stroke_width: 2
+                stroke_dash: 4
+                extend_to: now
+              # Grey band from the chart's start to now.
+              - entity: sensor.hourly_forecast
+                name: Past
+                yaxis_id: sky
+                type: area
+                color: '#9e9e9e'
+                opacity: 0.12
+                stroke_width: 0
+                curve: stepline
+                extend_to: false
+                data_generator: |
+                  return [[start.getTime(), 1], [new Date().getTime(), 1]];
+
+      # Live power, read-only. The heading opens the Power view.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Power
+            heading_style: subtitle
+            icon: mdi:flash
+            tap_action:
+              action: navigate
+              navigation_path: /ipad-home/power
+            badges:
+              - &badge
+                type: entity
+                entity: sensor.alphaess_daily_pv_generation
+                icon: mdi:solar-power
+                color: amber
+                tap_action:
+                  action: none
+              - <<: *badge
+                entity: sensor.alphaess_self_sufficiency
+                icon: mdi:home-battery
+                color: green
+              # Only while the car charges (Evnex polls its cloud every ~5 min).
+              - type: entity
+                entity: sensor.garage_joris_home_charger_metered_power
+                icon: mdi:ev-station
+                color: green
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.garage_joris_home_charger_charging
+                    state: "on"
+          # Big value with the last 24 h drawn underneath (watts, as the
+          # entities report them; grid is negative when exporting).
+          - &power
+            type: sensor
+            entity: sensor.alphaess_instantaneous_generation
+            name: Solar
+            icon: mdi:solar-power-variant
+            graph: line
+            hours_to_show: 24
+            detail: 1
+            grid_options:
+              columns: 6
+              rows: 2
+          - <<: *power
+            entity: sensor.alphaess_instantaneous_load
+            name: Using
+            icon: mdi:home-lightning-bolt
+          # Charge level; the name and icon say whether it's charging or
+          # discharging and how fast (sensor in the wall-phone package).
+          - <<: *power
+            entity: sensor.home_battery
+            name: ~
+            icon: ~
+          - <<: *power
+            entity: sensor.alphaess_instantaneous_grid_i_o_total
+            name: Grid
+            icon: mdi:transmission-tower
+
+      # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
+      # the full thermostat (modes, fan, swing).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Heat pumps
+            heading_style: subtitle
+            icon: mdi:home-thermometer
+            badges:
+              # Living room + Dining room heat pumps' energy today (Hall's
+              # adapter doesn't report it); sensor in the wall-phone package.
+              - type: entity
+                entity: sensor.heat_pumps_today
+                icon: mdi:heat-pump
+                color: deep-orange
+                tap_action:
+                  action: none
+              - type: entity
+                entity: sensor.living_room_measured_outdoor_air_temperature
+                name: Outside
+                icon: mdi:thermometer
+                show_name: true
+                tap_action:
+                  action: none
+          - &heat_pump
+            type: tile
+            entity: climate.living_room
+            name: Living room
+            state_content:
+              - state
+              - current_temperature
+            icon_tap_action:
+              action: toggle
+            grid_options:
+              columns: full
+            features_position: inline
+            features:
+              - type: target-temperature
+          - <<: *heat_pump
+            entity: climate.dining_room
+            name: Dining room
+          - <<: *heat_pump
+            entity: climate.hall
+            name: Hall
+
+      # Lights, Jodie's room and the vacuum (tap for start / return to dock).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Lights
+            heading_style: subtitle
+            icon: mdi:lightbulb-group
+          # Lights: tap toggles, hold opens brightness / colour temperature.
+          # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
+          # Both ceiling lights (select.ceiling_lights and its scripts in
+          # config/packages/wall_phone.yaml): tap = on/off, tap the icon =
+          # Night (moonlight) <-> Full. The icon shows the current mode.
+          - type: tile
+            entity: select.ceiling_lights
+            name: Ceiling lights
+            color: amber
+            tap_action:
+              action: perform-action
+              perform_action: script.ceiling_lights_toggle
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.ceiling_lights_flip_mode
+            grid_options:
+              columns: 6
+          - &light
+            type: tile
+            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
+            name: Bedside lamp
+            icon: mdi:lamp
+            color: amber
+            tap_action:
+              action: toggle
+            grid_options:
+              columns: 6
+          - <<: *light
+            entity: light.yeelink_sg_647181221_bslamp2_s_2_light
+            name: Jodie's lamp
+            icon: mdi:lamp
+          - <<: *light
+            entity: switch.lampe_salon
+            name: Lampe salon
+            icon: mdi:floor-lamp
+          - type: tile
+            entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
+            name: Jodie's room
+            icon: mdi:bed
+            color: teal
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: vacuum.rockrobo_sg_64457686_v1
+            name: Vacuum
+            icon: mdi:robot-vacuum
+            color: green
+            grid_options:
+              columns: 6
+
+      # The Evnex charger: what it's doing (sensor.car_charger in the
+      # wall-phone package), the energy added this session, and Charge now
+      # (overrides the charger's off-peak schedule; off returns to it).
+      # Evnex polls its cloud, so changes show up to ~5 minutes late.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Car
+            heading_style: subtitle
+            icon: mdi:car-electric
+            badges:
+              - type: entity
+                entity: sensor.evnex_residential_nz_total_power_usage_today
+                icon: mdi:ev-station
+                color: green
+                tap_action:
+                  action: none
+          - type: tile
+            entity: sensor.car_charger
+            name: Charger
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.garage_joris_home_charger_session_energy_added
+            name: This session
+            icon: mdi:battery-charging
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: switch.garage_joris_home_charger_charge_now
+            name: Charge now
+            icon: mdi:lightning-bolt
+            color: green
+            tap_action:
+              action: toggle
+            grid_options:
+              columns: 6
+
+      # Least urgent, so below the controls.
+      - type: grid
+        cards:
+          - type: weather-forecast
+            entity: weather.forecast_home
+            show_current: false
+            show_forecast: true
+            forecast_type: daily
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+
+  - title: Power
+    path: power
+    icon: mdi:solar-power-variant
+    type: sections
+    max_columns: 3
+    dense_section_placement: true
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Right now
+            heading_style: subtitle
+            icon: mdi:flash
+          # Splits the house load into the Energy dashboard's devices, using
+          # each device's live power sensor (Settings > Dashboards > Energy).
+          - type: power-sankey
+            grid_options:
+              columns: full
+
+      # Live power per device, read-only. The EV charger is Evnex's metered
+      # power. The heat pumps report energy only, so theirs is a 1 h average
+      # derived from their kWh counters.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Devices now
+            heading_style: subtitle
+            icon: mdi:power-plug
+          - &device
+            type: tile
+            entity: sensor.garage_joris_home_charger_metered_power
+            name: EV charger
+            icon: mdi:ev-station
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *device
+            entity: sensor.living_room_heat_pump_power
+            name: Living room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *device
+            entity: sensor.dining_room_heat_pump_power
+            name: Dining room heat pump
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *device
+            entity: sensor.smart_plug_ordi_current_consumption
+            name: Computer
+            icon: mdi:desktop-tower-monitor
+            color: blue
+          - <<: *device
+            entity: sensor.smart_plug_tv_current_consumption
+            name: TV
+            icon: mdi:television
+            color: blue
+          - <<: *device
+            entity: sensor.lampe_salon_current_consumption
+            name: Lampe salon
+            icon: mdi:floor-lamp
+            color: amber
+          - <<: *device
+            entity: sensor.aquarium_light_current_consumption
+            name: Aquarium light
+            icon: mdi:lightbulb
+            color: amber
+          - <<: *device
+            entity: sensor.aquarium_pump_current_consumption
+            name: Aquarium pump
+            icon: mdi:pump
+            color: teal
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Last 24 hours
+            heading_style: subtitle
+            icon: mdi:chart-line
+          - type: history-graph
+            hours_to_show: 24
+            grid_options:
+              columns: full
+            entities:
+              - entity: sensor.alphaess_instantaneous_generation
+                name: Solar
+              - entity: sensor.alphaess_instantaneous_load
+                name: Using
+              - entity: sensor.alphaess_instantaneous_grid_i_o_total
+                name: Grid
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Today
+            heading_style: subtitle
+            icon: mdi:calendar-today
+          - &today
+            type: tile
+            entity: sensor.alphaess_daily_pv_generation
+            name: Generated
+            icon: mdi:solar-power
+            color: amber
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *today
+            entity: sensor.alphaess_total_load
+            name: Consumed
+            icon: mdi:home-lightning-bolt
+            color: blue
+          - <<: *today
+            entity: sensor.alphaess_daily_feed_in
+            name: Exported
+            icon: mdi:transmission-tower-export
+            color: purple
+          - <<: *today
+            entity: sensor.alphaess_daily_grid_consumption
+            name: Imported
+            icon: mdi:transmission-tower-import
+            color: brown
+          - <<: *today
+            entity: sensor.evnex_residential_nz_total_power_usage_today
+            name: EV charged
+            icon: mdi:ev-station
+            color: green
+          - <<: *today
+            entity: sensor.heat_pumps_today
+            name: Heat pumps
+            icon: mdi:heat-pump
+            color: deep-orange
+          - <<: *today
+            entity: sensor.smart_plug_ordi_today_s_consumption
+            name: Computer
+            icon: mdi:desktop-tower-monitor
+            color: blue
+          - <<: *today
+            entity: sensor.smart_plug_tv_today_s_consumption
+            name: TV
+            icon: mdi:television
+            color: blue
