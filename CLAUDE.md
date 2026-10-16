@@ -68,11 +68,18 @@ Supervisor's `os/datadisk/move`. The SD card's old copy is left as
 `hassos-data-old`. Swap sits around 300–550 MB. If the enclosure's power comes
 on after the Pi boots, the adapter shows a 0-byte "VirtualDisk" and HA won't
 start; replug it with the enclosure powered. Keep add-ons and integrations lean: Matter Server
-is stopped on purpose (no devices), and the recorder uses `commit_interval: 30`,
+was removed (no devices), and the recorder uses `commit_interval: 30`,
 `purge_keep_days: 7`. **Run `sync` after writing files**: a power cut once
 truncated a freshly installed HACS integration to empty files. The `rpi_power`
 "under-voltage" repair is a sticky since-boot flag. One event at power-on is
 normal; repeated events while running mean a power problem.
+
+## Security
+
+`docs/security.md` lists what is exposed and how. IPv6 is disabled on the Pi
+on purpose (HA had a public address with no host firewall), the `wallphone`
+user is local-only, and only Cloudflared auto-updates. Leave these alone
+unless that doc says otherwise.
 
 ## Backups
 
