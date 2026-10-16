@@ -418,6 +418,145 @@ views:
             grid_options:
               columns: full
 
+  - title: Music
+    path: music
+    icon: mdi:music
+    type: sections
+    max_columns: 1
+    sections:
+      # Spotify on the Sonos speakers. Tap rooms to choose where it plays (any
+      # mix; "Everywhere" picks all three): config/packages/music.yaml groups
+      # them, and the player shows the group's coordinator, picked by
+      # sensor.music_speaker. To choose music, tap the player, then Browse
+      # media > pimooss. A volume slider appears for each chosen room.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Spotify
+            heading_style: subtitle
+            icon: mdi:spotify
+            badges:
+              - type: entity
+                entity: script.music_everywhere
+                name: Everywhere
+                show_name: true
+                show_state: false
+                color: green
+                tap_action:
+                  action: perform-action
+                  perform_action: script.music_everywhere
+          - &room
+            type: tile
+            entity: input_boolean.music_living_room
+            name: Living room
+            color: green
+            vertical: true
+            hide_state: true
+            tap_action:
+              action: toggle
+            icon_tap_action:
+              action: toggle
+            grid_options:
+              columns: 4
+              rows: 2
+          - <<: *room
+            entity: input_boolean.music_dining_room
+            name: Dining room
+          - <<: *room
+            entity: input_boolean.music_hallway
+            name: Hallway
+          - &player
+            type: media-control
+            entity: media_player.tv_room
+            grid_options:
+              columns: full
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.tv_room
+          - <<: *player
+            entity: media_player.dining_room
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.dining_room
+          - <<: *player
+            entity: media_player.hallway
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.hallway
+          - &volume
+            type: tile
+            entity: media_player.tv_room
+            name: Living room
+            icon: mdi:sofa
+            hide_state: true
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: media-player-volume-slider
+            grid_options:
+              columns: full
+            visibility:
+              - condition: state
+                entity: input_boolean.music_living_room
+                state: "on"
+          - <<: *volume
+            entity: media_player.dining_room
+            name: Dining room
+            icon: mdi:table-chair
+            visibility:
+              - condition: state
+                entity: input_boolean.music_dining_room
+                state: "on"
+          - <<: *volume
+            entity: media_player.hallway
+            name: Hallway
+            icon: mdi:door
+            visibility:
+              - condition: state
+                entity: input_boolean.music_hallway
+                state: "on"
+
+      # Jodie's Yoto player (Yoto integration, cloud). It only plays Yoto
+      # cards: tap the player, then Browse media for the card library.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Jodie's Yoto
+            heading_style: subtitle
+            icon: mdi:music-box
+            badges:
+              - type: entity
+                entity: sensor.jodie_battery
+                tap_action:
+                  action: none
+              - type: entity
+                entity: binary_sensor.jodie_headphones
+                name: Headphones
+                show_name: true
+                show_state: false
+                icon: mdi:headphones
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.jodie_headphones
+                    state: "on"
+          - type: media-control
+            entity: media_player.jodie
+            grid_options:
+              columns: full
+          - <<: *volume
+            entity: media_player.jodie
+            name: Volume
+            icon: mdi:volume-high
+            visibility: []
+
   - title: Power
     path: power
     icon: mdi:solar-power-variant

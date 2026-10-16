@@ -99,6 +99,14 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
   ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") and icon, so the
   Battery sensor card on both Home views shows the rate too.
 
+Its **Music** view plays Spotify on the Sonos speakers (TV Room Beam = living
+room, Dining Room, Hallway) and shows Jodie's Yoto. `config/packages/music.yaml`
+holds one `input_boolean.music_*` per room. Its automation groups the chosen
+speakers (debounced 1 s), and `sensor.music_speaker` names the group's
+coordinator, which picks the player card that shows. Spotify music is chosen
+from the player's media browser (Sonos → pimooss). The switches don't follow
+grouping done in the Sonos app.
+
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
 browser tool, so test card changes in a local page: serve the card JS and a fake
