@@ -464,6 +464,429 @@ views:
             grid_options:
               columns: full
 
+  - title: Music
+    path: music
+    icon: mdi:music
+    type: sections
+    max_columns: 1
+    sections:
+      # Spotify on the Sonos speakers. Tap rooms to choose where it plays (any
+      # mix; "Everywhere" picks all three): config/packages/music.yaml groups
+      # them, and the player shows the group's coordinator, picked by
+      # sensor.music_speaker. To choose music, tap the player, then Browse
+      # media > pimooss. A volume slider appears for each chosen room. Jodie's
+      # Yoto is on the Kids view.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Spotify
+            heading_style: subtitle
+            icon: mdi:spotify
+            badges:
+              - type: entity
+                entity: script.music_everywhere
+                name: Everywhere
+                show_name: true
+                show_state: false
+                color: green
+                tap_action:
+                  action: perform-action
+                  perform_action: script.music_everywhere
+          - &room
+            type: tile
+            entity: input_boolean.music_living_room
+            name: Living room
+            color: green
+            vertical: true
+            hide_state: true
+            tap_action:
+              action: toggle
+            icon_tap_action:
+              action: toggle
+            grid_options:
+              columns: 4
+              rows: 2
+          - <<: *room
+            entity: input_boolean.music_dining_room
+            name: Dining room
+          - <<: *room
+            entity: input_boolean.music_hallway
+            name: Hallway
+          # One-tap playlists in the dining room and hallway (scripts in
+          # config/packages/music.yaml).
+          - &shortcut
+            type: tile
+            entity: script.music_morning_jazz
+            name: Morning jazz
+            color: deep-orange
+            hide_state: true
+            tap_action:
+              action: perform-action
+              perform_action: script.music_morning_jazz
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.music_morning_jazz
+            grid_options:
+              columns: 6
+          - <<: *shortcut
+            entity: script.music_morning_piano
+            name: Morning piano
+            tap_action:
+              action: perform-action
+              perform_action: script.music_morning_piano
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.music_morning_piano
+          - &player
+            type: media-control
+            entity: media_player.tv_room
+            grid_options:
+              columns: full
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.tv_room
+          - <<: *player
+            entity: media_player.dining_room
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.dining_room
+          - <<: *player
+            entity: media_player.hallway
+            visibility:
+              - condition: state
+                entity: sensor.music_speaker
+                state: media_player.hallway
+          - &volume
+            type: tile
+            entity: media_player.tv_room
+            name: Living room
+            icon: mdi:sofa
+            hide_state: true
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: media-player-volume-slider
+            grid_options:
+              columns: full
+            visibility:
+              - condition: state
+                entity: input_boolean.music_living_room
+                state: "on"
+          - <<: *volume
+            entity: media_player.dining_room
+            name: Dining room
+            icon: mdi:table-chair
+            visibility:
+              - condition: state
+                entity: input_boolean.music_dining_room
+                state: "on"
+          - <<: *volume
+            entity: media_player.hallway
+            name: Hallway
+            icon: mdi:door
+            visibility:
+              - condition: state
+                entity: input_boolean.music_hallway
+                state: "on"
+
+  - title: Kids
+    path: kids
+    icon: mdi:teddy-bear
+    type: sections
+    max_columns: 1
+    sections:
+      # Jodie's Yoto player (Yoto integration, cloud). It only plays Yoto
+      # cards: tap the player, then Browse media for the whole card library.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Jodie's Yoto
+            heading_style: subtitle
+            icon: mdi:music-box
+            badges:
+              - type: entity
+                entity: sensor.jodie_battery
+                tap_action:
+                  action: none
+              - type: entity
+                entity: binary_sensor.jodie_headphones
+                name: Headphones
+                show_name: true
+                show_state: false
+                icon: mdi:headphones
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.jodie_headphones
+                    state: "on"
+          - type: media-control
+            entity: media_player.jodie
+            grid_options:
+              columns: full
+          - <<: *volume
+            entity: media_player.jodie
+            name: Volume
+            icon: mdi:volume-high
+            visibility: []
+
+      # One tap plays a card from Jodie's Yoto library on her player. IDs
+      # come from the player's media browser (yoto://card/<id>).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Stories
+            heading_style: subtitle
+            icon: mdi:book-open-page-variant
+          - &story
+            type: tile
+            entity: media_player.jodie
+            name: Tintin
+            icon: mdi:rocket
+            color: blue
+            hide_state: true
+            tap_action: &play_story
+              action: perform-action
+              perform_action: media_player.play_media
+              target:
+                entity_id: media_player.jodie
+              data:
+                media_content_id: yoto://card/e04g5
+                media_content_type: music
+            icon_tap_action: *play_story
+            grid_options:
+              columns: 6
+          - <<: *story
+            name: Les odyssées
+            icon: mdi:compass-rose
+            color: deep-orange
+            tap_action: &play_odyssees
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/cUqRz
+                media_content_type: music
+            icon_tap_action: *play_odyssees
+          - <<: *story
+            name: Oli
+            icon: mdi:weather-night
+            color: indigo
+            tap_action: &play_oli
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/8mvD4
+                media_content_type: music
+            icon_tap_action: *play_oli
+          - <<: *story
+            name: Bestioles
+            icon: mdi:ladybug
+            color: red
+            tap_action: &play_bestioles
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/d3PX8
+                media_content_type: music
+            icon_tap_action: *play_bestioles
+          - <<: *story
+            name: Les Zinstrus
+            icon: mdi:violin
+            color: amber
+            tap_action: &play_zinstrus
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/erZr1
+                media_content_type: music
+            icon_tap_action: *play_zinstrus
+          - <<: *story
+            name: Prince de Motordu
+            icon: mdi:crown
+            color: purple
+            tap_action: &play_motordu
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/8tQBt
+                media_content_type: music
+            icon_tap_action: *play_motordu
+          - <<: *story
+            name: Zébulon
+            icon: mdi:fire
+            color: green
+            tap_action: &play_zebulon
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/dLe7m
+                media_content_type: music
+            icon_tap_action: *play_zebulon
+          - <<: *story
+            name: Gruffalo
+            icon: mdi:paw
+            color: brown
+            tap_action: &play_gruffalo
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/cxuNI
+                media_content_type: music
+            icon_tap_action: *play_gruffalo
+          - <<: *story
+            name: Camp Owl
+            icon: mdi:owl
+            color: teal
+            tap_action: &play_camp_owl
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/zfcn8
+                media_content_type: music
+            icon_tap_action: *play_camp_owl
+          - <<: *story
+            name: Dogood Detectives
+            icon: mdi:magnify
+            color: blue-grey
+            tap_action: &play_dogood
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/9DOuw
+                media_content_type: music
+            icon_tap_action: *play_dogood
+          # Yoto Club series: pick a card from the dropdown to play it
+          # (selects in config/packages/yoto.yaml).
+          - &series
+            type: tile
+            entity: select.yoto_5_minute_stories
+            name: 5-Minute Stories
+            color: pink
+            hide_state: true
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: select-options
+            grid_options:
+              columns: full
+          - <<: *series
+            entity: select.yoto_classics
+            name: Classics
+
+      # Yoto Club podcasts and radio, one tap each.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Podcasts & radio
+            heading_style: subtitle
+            icon: mdi:podcast
+          - <<: *story
+            name: Yoto Daily
+            icon: mdi:calendar-star
+            color: orange
+            tap_action: &play_daily
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/gtROT
+                media_content_type: music
+            icon_tap_action: *play_daily
+          - <<: *story
+            name: Around the World
+            icon: mdi:earth
+            color: light-blue
+            tap_action: &play_world
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/6Zxkk
+                media_content_type: music
+            icon_tap_action: *play_world
+          - <<: *story
+            name: Brain Snacks
+            icon: mdi:head-lightbulb
+            color: lime
+            tap_action: &play_snacks
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/aYAQy
+                media_content_type: music
+            icon_tap_action: *play_snacks
+          - <<: *story
+            name: History for Kids
+            icon: mdi:castle
+            color: brown
+            tap_action: &play_history
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/dhnrU
+                media_content_type: music
+            icon_tap_action: *play_history
+          - <<: *story
+            name: Mini Journal
+            icon: mdi:newspaper-variant
+            color: cyan
+            tap_action: &play_journal
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/2gBG5
+                media_content_type: music
+            icon_tap_action: *play_journal
+          - <<: *story
+            name: Noodle Loaf
+            icon: mdi:music-clef-treble
+            color: amber
+            tap_action: &play_noodle
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/4iekL
+                media_content_type: music
+            icon_tap_action: *play_noodle
+          - <<: *story
+            name: Sleep Radio
+            icon: mdi:sleep
+            color: indigo
+            tap_action: &play_sleep
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/5rJ03
+                media_content_type: music
+            icon_tap_action: *play_sleep
+          - <<: *story
+            name: Classical Sleep
+            icon: mdi:violin
+            color: deep-purple
+            tap_action: &play_classical_sleep
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/c7Oae
+                media_content_type: music
+            icon_tap_action: *play_classical_sleep
+          - <<: *story
+            name: Radio Yoto (FR)
+            icon: mdi:radio
+            color: red
+            tap_action: &play_radio_fr
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/2pjM1
+                media_content_type: music
+            icon_tap_action: *play_radio_fr
+
+      # Yoto Club learning series: pick a card from the dropdown.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Learning
+            heading_style: subtitle
+            icon: mdi:school
+          - <<: *series
+            entity: select.yoto_brainbots
+            name: BrainBots
+          - <<: *series
+            entity: select.yoto_dinosaurs
+            name: Dinosaurs
+          - <<: *series
+            entity: select.yoto_the_solar_system
+            name: Solar System
+
   - title: Power
     path: power
     icon: mdi:solar-power-variant

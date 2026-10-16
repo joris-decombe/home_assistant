@@ -1,0 +1,184 @@
+# Music on the wall phone: pick which Sonos rooms play, as one group. Each
+# room has a switch (input_boolean); the automation below groups the chosen
+# speakers and drops the others, and sensor.music_speaker names the group's
+# coordinator, which the Music view's player card follows. Spotify plays
+# through Sonos: browse the "pimooss" library from the player's media browser.
+# The Sony TV (Cast) and the Yoto aren't Spotify targets, so they're not rooms.
+# Copy to /config/packages/ and reload input booleans, template entities and
+# automations.
+
+input_boolean:
+  music_living_room:
+    name: Music in the living room
+    icon: mdi:sofa
+  music_dining_room:
+    name: Music in the dining room
+    icon: mdi:table-chair
+  music_hallway:
+    name: Music in the hallway
+    icon: mdi:door
+
+template:
+  # The speaker to control: the coordinator of the first chosen room's group,
+  # else whatever is playing, else the living room (TV Room Beam).
+  - sensor:
+      - name: Music speaker
+        unique_id: music_speaker
+        icon: mdi:speaker-multiple
+        state: >
+          {% set rooms = {'input_boolean.music_living_room': 'media_player.tv_room',
+                          'input_boolean.music_dining_room': 'media_player.dining_room',
+                          'input_boolean.music_hallway': 'media_player.hallway'} %}
+          {% set chosen = namespace(list=[]) %}
+          {% for b, sp in rooms.items() if is_state(b, 'on') %}{% set chosen.list = chosen.list + [sp] %}{% endfor %}
+          {% set playing = rooms.values() | select('is_state', 'playing') | list %}
+          {% set first = (chosen.list + playing + ['media_player.tv_room'])[0] %}
+          {{ (state_attr(first, 'group_members') or [first])[0] }}
+
+script:
+  # The "Everywhere" tile: every room on (one regroup, see the debounce below).
+  music_everywhere:
+    alias: Music everywhere
+    icon: mdi:home-sound-out
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.music_living_room
+            - input_boolean.music_dining_room
+            - input_boolean.music_hallway
+
+  # Play a Spotify playlist in the chosen rooms: switch the rooms, wait for
+  # the regroup automation, then start it on the group's coordinator. Sonos
+  # plays Spotify URIs itself (Spotify must be linked in the Sonos app).
+  music_play_playlist:
+    alias: Music play playlist
+    icon: mdi:playlist-play
+    mode: restart
+    fields:
+      playlist:
+        description: Spotify URI, e.g. spotify:playlist:37i9dQZF1DX71VcjjnyaBQ
+        required: true
+      rooms:
+        description: Room switches to play in (the others are switched off)
+        required: true
+    sequence:
+      - variables:
+          all_rooms:
+            input_boolean.music_living_room: media_player.tv_room
+            input_boolean.music_dining_room: media_player.dining_room
+            input_boolean.music_hallway: media_player.hallway
+          speakers: >
+            {% set ns = namespace(list=[]) %}
+            {% for b in rooms %}{% set ns.list = ns.list + [all_rooms[b]] %}{% endfor %}
+            {{ ns.list | sort }}
+      - action: input_boolean.turn_on
+        target:
+          entity_id: "{{ rooms }}"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ all_rooms.keys() | reject('in', rooms) | list }}"
+      # Regroup even if the switches were already right (grouping done in the
+      # Sonos app or HA's group dialog doesn't move them).
+      - action: automation.trigger
+        target:
+          entity_id: automation.music_rooms_regroup
+      - wait_template: >
+          {{ (state_attr(speakers[0], 'group_members') or []) | sort == speakers }}
+        timeout: 15
+      - action: media_player.play_media
+        target:
+          entity_id: "{{ (state_attr(speakers[0], 'group_members') or speakers)[0] }}"
+        data:
+          media_content_id: "{{ playlist }}"
+          media_content_type: playlist
+          enqueue: replace
+
+  # Wall-phone shortcuts: Spotify's own playlists in the dining room and
+  # hallway.
+  music_morning_jazz:
+    alias: Morning jazz
+    icon: mdi:saxophone
+    sequence:
+      - action: script.music_play_playlist
+        data:
+          # Good Morning Jazz (Spotify)
+          playlist: spotify:playlist:37i9dQZF1DX71VcjjnyaBQ
+          rooms: &morning_rooms
+            - input_boolean.music_dining_room
+            - input_boolean.music_hallway
+
+  music_morning_piano:
+    alias: Morning piano
+    icon: mdi:piano
+    sequence:
+      - action: script.music_play_playlist
+        data:
+          # Coffee and Piano (Spotify)
+          playlist: spotify:playlist:37i9dQZF1DX3TPMgP3ojGS
+          rooms: *morning_rooms
+
+automation:
+  - id: music_rooms_regroup
+    alias: Music rooms regroup
+    description: Groups the Sonos speakers of the rooms switched on for music.
+    # Restart + a 1 s wait debounces quick taps (and "Everywhere") into one
+    # regroup that reads every switch.
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id:
+          - input_boolean.music_living_room
+          - input_boolean.music_dining_room
+          - input_boolean.music_hallway
+        not_from: unavailable
+        not_to: unavailable
+    actions:
+      - delay: 1
+      - variables:
+          rooms:
+            input_boolean.music_living_room: media_player.tv_room
+            input_boolean.music_dining_room: media_player.dining_room
+            input_boolean.music_hallway: media_player.hallway
+          chosen: >
+            {% set ns = namespace(list=[]) %}
+            {% for b, sp in rooms.items() if is_state(b, 'on') %}{% set ns.list = ns.list + [sp] %}{% endfor %}
+            {{ ns.list }}
+          # Keep music going: build on a chosen room that's playing if any.
+          leader: "{{ ((chosen | select('is_state', 'playing') | list) + chosen + [none])[0] }}"
+          group: "{{ (state_attr(leader, 'group_members') or [leader]) if leader else [] }}"
+          drop: "{{ group | reject('in', chosen) | list }}"
+      - choose:
+          # Last room switched off: stop the music and split the group.
+          - conditions: "{{ not chosen }}"
+            sequence:
+              - action: media_player.media_pause
+                target:
+                  entity_id: "{{ rooms[trigger.entity_id] }}"
+                continue_on_error: true
+              - variables:
+                  grouped: "{{ state_attr(rooms[trigger.entity_id], 'group_members') or [] }}"
+              - if: "{{ grouped | count > 1 }}"
+                then:
+                  - action: media_player.unjoin
+                    target:
+                      entity_id: "{{ grouped }}"
+        default:
+          - if: "{{ drop | count > 0 }}"
+            then:
+              - action: media_player.unjoin
+                target:
+                  entity_id: "{{ drop }}"
+              - delay: 1
+          # Join the rest to the group's coordinator (which changes if the old
+          # one was just dropped), read again after the unjoin.
+          - variables:
+              group: "{{ state_attr(leader, 'group_members') or [leader] }}"
+              add: "{{ chosen | reject('in', group) | list }}"
+          - if: "{{ add | count > 0 }}"
+            then:
+              - action: media_player.join
+                target:
+                  entity_id: "{{ group[0] }}"
+                data:
+                  group_members: "{{ add }}"

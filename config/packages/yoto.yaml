@@ -1,0 +1,136 @@
+# Jodie's Yoto series for the wall phone's Kids view: one select per series
+# of Yoto Club cards in her library. Picking a card plays it on her player.
+# The state stays unknown so the same card can be picked again. Card IDs come
+# from the player's media browser (yoto://card/<id>). Copy to /config/packages/
+# and reload template entities.
+
+template:
+  - select:
+      - name: Yoto 5-Minute Stories
+        unique_id: yoto_5_minute_stories
+        icon: mdi:timer-sand
+        state: "{{ none }}"
+        options: >
+          {{ ['Dinosaur', 'Enchanted', 'Outer Space'] }}
+        select_option:
+          - variables:
+              cards:
+                'Dinosaur': yoto://card/7T89G
+                'Enchanted': yoto://card/1yi0s
+                'Outer Space': yoto://card/8Mr02
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.jodie
+            data:
+              media_content_id: "{{ cards[option] }}"
+              media_content_type: music
+      - name: Yoto Classics
+        unique_id: yoto_classics
+        icon: mdi:book-open-variant
+        state: "{{ none }}"
+        options: >
+          {{ ['A Little Princess', 'Little Women', 'The Jungle Book', 'The Wonderful Wizard of Oz', 'Treasure Island'] }}
+        select_option:
+          - variables:
+              cards:
+                'A Little Princess': yoto://card/3Glyv
+                'Little Women': yoto://card/gBDac
+                'The Jungle Book': yoto://card/j8b4j
+                'The Wonderful Wizard of Oz': yoto://card/97Weq
+                'Treasure Island': yoto://card/eDwz6
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.jodie
+            data:
+              media_content_id: "{{ cards[option] }}"
+              media_content_type: music
+      - name: Yoto BrainBots
+        unique_id: yoto_brainbots
+        icon: mdi:robot-happy
+        state: "{{ none }}"
+        options: >
+          {{ ['Our Planet - Climate and Seasons', 'Our Planet - Earthquakes', 'Our Planet - Hurricanes and Tornadoes', 'Our Planet - Oceans', 'Our Planet - Rain and the Water Cycle', 'Our Planet - The Polar Regions', 'Our Planet - Tropical Rainforests', 'Our Planet - Volcanoes', 'Science Fair: Earth and Space', 'Science Fair: Electricity', 'Science Fair: Evolution', 'Science Fair: Forces and Magnets', 'Science Fair: Light', 'Science Fair: Materials', 'Science Fair: Plants', 'Science Fair: Sound', 'Sport - Tennis', 'The Ancient World - Ancient Egypt', 'The Ancient World - Ancient Greece', 'The Ancient World - Ancient Maya', 'The Ancient World - Ancient Rome', 'The Ancient World - Ancient Sumer', 'The Ancient World - Indigenous Australia', 'The Ancient World - Sui, Tang, and Song Dynasties', 'The Ancient World - The Vikings', 'Transportation - Bikes', 'Transportation - Boats', 'Transportation - Cars', 'Transportation - Emergency Vehicles', 'Transportation - Planes', 'Transportation - Space Vehicles', 'Transportation - Trains'] }}
+        select_option:
+          - variables:
+              cards:
+                'Our Planet - Climate and Seasons': yoto://card/7CaVW
+                'Our Planet - Earthquakes': yoto://card/4RSQj
+                'Our Planet - Hurricanes and Tornadoes': yoto://card/eLHVc
+                'Our Planet - Oceans': yoto://card/iILJy
+                'Our Planet - Rain and the Water Cycle': yoto://card/3RSZy
+                'Our Planet - The Polar Regions': yoto://card/dJeEk
+                'Our Planet - Tropical Rainforests': yoto://card/h2uvW
+                'Our Planet - Volcanoes': yoto://card/21Ws8
+                'Science Fair: Earth and Space': yoto://card/7q1Am
+                'Science Fair: Electricity': yoto://card/i51XG
+                'Science Fair: Evolution': yoto://card/eUUv0
+                'Science Fair: Forces and Magnets': yoto://card/dooNr
+                'Science Fair: Light': yoto://card/h0r47
+                'Science Fair: Materials': yoto://card/7IpE7
+                'Science Fair: Plants': yoto://card/butqF
+                'Science Fair: Sound': yoto://card/7HeqF
+                'Sport - Tennis': yoto://card/7AZR8
+                'The Ancient World - Ancient Egypt': yoto://card/f3ytd
+                'The Ancient World - Ancient Greece': yoto://card/hz0Cd
+                'The Ancient World - Ancient Maya': yoto://card/iCqV9
+                'The Ancient World - Ancient Rome': yoto://card/fkvf6
+                'The Ancient World - Ancient Sumer': yoto://card/aYVoF
+                'The Ancient World - Indigenous Australia': yoto://card/7HEjh
+                'The Ancient World - Sui, Tang, and Song Dynasties': yoto://card/dDrz3
+                'The Ancient World - The Vikings': yoto://card/9FgTE
+                'Transportation - Bikes': yoto://card/bL0WJ
+                'Transportation - Boats': yoto://card/iucVC
+                'Transportation - Cars': yoto://card/5PzZy
+                'Transportation - Emergency Vehicles': yoto://card/5o3Tf
+                'Transportation - Planes': yoto://card/1fHEE
+                'Transportation - Space Vehicles': yoto://card/c6Amp
+                'Transportation - Trains': yoto://card/LIpRt
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.jodie
+            data:
+              media_content_id: "{{ cards[option] }}"
+              media_content_type: music
+      - name: Yoto Dinosaurs
+        unique_id: yoto_dinosaurs
+        icon: mdi:google-downasaur
+        state: "{{ none }}"
+        options: >
+          {{ ['Ankylosaurus', 'Corythosaurus', 'Diplodocus', 'Pachycephalosaurus', 'Paleontology', 'Stegosaurus', 'Triceratops', 'Tyrannosaurus rex'] }}
+        select_option:
+          - variables:
+              cards:
+                'Ankylosaurus': yoto://card/eglcG
+                'Corythosaurus': yoto://card/j9UYS
+                'Diplodocus': yoto://card/i89up
+                'Pachycephalosaurus': yoto://card/bdxvE
+                'Paleontology': yoto://card/ejo4s
+                'Stegosaurus': yoto://card/18zSS
+                'Triceratops': yoto://card/brPoi
+                'Tyrannosaurus rex': yoto://card/hj943
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.jodie
+            data:
+              media_content_id: "{{ cards[option] }}"
+              media_content_type: music
+      - name: Yoto The Solar System
+        unique_id: yoto_solar_system
+        icon: mdi:orbit
+        state: "{{ none }}"
+        options: >
+          {{ ['Jupiter', 'Mercury', 'Saturn', 'The Sun', 'Venus'] }}
+        select_option:
+          - variables:
+              cards:
+                'Jupiter': yoto://card/cnQYD
+                'Mercury': yoto://card/f0loR
+                'Saturn': yoto://card/6lRWr
+                'The Sun': yoto://card/aVoNj
+                'Venus': yoto://card/1aJiI
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.jodie
+            data:
+              media_content_id: "{{ cards[option] }}"
+              media_content_type: music

@@ -111,6 +111,20 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
   "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
   The Car section's *Charge now* switch is the one charger control on it.
 
+Its **Kids** view has Jodie's Yoto player, one-tap story, podcast and radio
+tiles (`media_player.play_media` with `yoto://card/<id>`, IDs from the
+player's media browser), and dropdowns for multi-card Yoto Club series
+(BrainBots, Dinosaurs…): template selects in `config/packages/yoto.yaml`
+whose state stays unknown, so picking a card always plays it. Its **Music** view plays Spotify on the Sonos speakers (TV
+Room Beam = living room, Dining Room, Hallway). `config/packages/music.yaml`
+holds one `input_boolean.music_*` per room. Its automation groups the chosen
+speakers (debounced 1 s), and `sensor.music_speaker` names the group's
+coordinator, which picks the player card that shows. Spotify music is chosen
+from the player's media browser (Sonos → pimooss), or from the *Morning jazz*
+and *Morning piano* shortcuts (`script.music_play_playlist`: Spotify URIs that
+Sonos plays itself, in the dining room and hallway). The switches don't follow
+grouping done in the Sonos app or in HA's own group dialog.
+
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
 browser tool, so test card changes in a local page: serve the card JS and a fake
@@ -127,6 +141,11 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.
+- **Yoto** (core integration, cloud, found by DHCP): one player, "Jodie", in
+  Jodie's room (`media_player.jodie`, battery, headphones, and day/night-mode
+  volume, colour and brightness controls). **Spotify** (core, OAuth): the
+  Premium account `pimooss` as `media_player.spotify_pimooss`. Added in
+  October 2026.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
