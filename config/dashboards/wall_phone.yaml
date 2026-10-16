@@ -731,6 +731,161 @@ views:
                 media_content_id: yoto://card/cxuNI
                 media_content_type: music
             icon_tap_action: *play_gruffalo
+          - <<: *story
+            name: Camp Owl
+            icon: mdi:owl
+            color: teal
+            tap_action: &play_camp_owl
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/zfcn8
+                media_content_type: music
+            icon_tap_action: *play_camp_owl
+          - <<: *story
+            name: Dogood Detectives
+            icon: mdi:magnify
+            color: blue-grey
+            tap_action: &play_dogood
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/9DOuw
+                media_content_type: music
+            icon_tap_action: *play_dogood
+          # Yoto Club series: pick a card from the dropdown to play it
+          # (selects in config/packages/yoto.yaml).
+          - &series
+            type: tile
+            entity: select.yoto_5_minute_stories
+            name: 5-Minute Stories
+            color: pink
+            hide_state: true
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: select-options
+            grid_options:
+              columns: full
+          - <<: *series
+            entity: select.yoto_classics
+            name: Classics
+
+      # Yoto Club podcasts and radio, one tap each.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Podcasts & radio
+            heading_style: subtitle
+            icon: mdi:podcast
+          - <<: *story
+            name: Yoto Daily
+            icon: mdi:calendar-star
+            color: orange
+            tap_action: &play_daily
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/gtROT
+                media_content_type: music
+            icon_tap_action: *play_daily
+          - <<: *story
+            name: Around the World
+            icon: mdi:earth
+            color: light-blue
+            tap_action: &play_world
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/6Zxkk
+                media_content_type: music
+            icon_tap_action: *play_world
+          - <<: *story
+            name: Brain Snacks
+            icon: mdi:head-lightbulb
+            color: lime
+            tap_action: &play_snacks
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/aYAQy
+                media_content_type: music
+            icon_tap_action: *play_snacks
+          - <<: *story
+            name: History for Kids
+            icon: mdi:castle
+            color: brown
+            tap_action: &play_history
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/dhnrU
+                media_content_type: music
+            icon_tap_action: *play_history
+          - <<: *story
+            name: Mini Journal
+            icon: mdi:newspaper-variant
+            color: cyan
+            tap_action: &play_journal
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/2gBG5
+                media_content_type: music
+            icon_tap_action: *play_journal
+          - <<: *story
+            name: Noodle Loaf
+            icon: mdi:music-clef-treble
+            color: amber
+            tap_action: &play_noodle
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/4iekL
+                media_content_type: music
+            icon_tap_action: *play_noodle
+          - <<: *story
+            name: Sleep Radio
+            icon: mdi:sleep
+            color: indigo
+            tap_action: &play_sleep
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/5rJ03
+                media_content_type: music
+            icon_tap_action: *play_sleep
+          - <<: *story
+            name: Classical Sleep
+            icon: mdi:violin
+            color: deep-purple
+            tap_action: &play_classical_sleep
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/c7Oae
+                media_content_type: music
+            icon_tap_action: *play_classical_sleep
+          - <<: *story
+            name: Radio Yoto (FR)
+            icon: mdi:radio
+            color: red
+            tap_action: &play_radio_fr
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/2pjM1
+                media_content_type: music
+            icon_tap_action: *play_radio_fr
+
+      # Yoto Club learning series: pick a card from the dropdown.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Learning
+            heading_style: subtitle
+            icon: mdi:school
+          - <<: *series
+            entity: select.yoto_brainbots
+            name: BrainBots
+          - <<: *series
+            entity: select.yoto_dinosaurs
+            name: Dinosaurs
+          - <<: *series
+            entity: select.yoto_the_solar_system
+            name: Solar System
 
   - title: Power
     path: power

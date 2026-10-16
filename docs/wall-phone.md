@@ -6,9 +6,11 @@ live solar / load / battery / grid with a power-flow chart, tap-to-toggle
 tiles for lights and heat pumps, and the car charger (status, energy this
 session, Charge now). Power figures are read-only. The **Music** tab picks
 which Sonos rooms play Spotify (any mix, or *Everywhere*). The **Kids** tab has
-Jodie's Yoto player and one-tap stories (Tintin, Les odyssées, Oli…). To
-choose anything else, tap a player, then *Browse media*. Its helpers are in
-[`config/packages/music.yaml`](../config/packages/music.yaml).
+Jodie's Yoto player, one-tap stories, podcasts and radio (Tintin, Yoto Daily…),
+and dropdowns for Yoto Club series (BrainBots, Dinosaurs, Solar System…). To
+choose anything else, tap a player, then *Browse media*. Their helpers are in
+[`config/packages/music.yaml`](../config/packages/music.yaml) and
+[`config/packages/yoto.yaml`](../config/packages/yoto.yaml).
 
 Push changes to the dashboard with:
 

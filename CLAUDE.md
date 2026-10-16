@@ -111,9 +111,11 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
   "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
   The Car section's *Charge now* switch is the one charger control on it.
 
-Its **Kids** view has Jodie's Yoto player and one-tap story tiles
-(`media_player.play_media` with `yoto://card/<id>`, IDs from the player's
-media browser). Its **Music** view plays Spotify on the Sonos speakers (TV
+Its **Kids** view has Jodie's Yoto player, one-tap story, podcast and radio
+tiles (`media_player.play_media` with `yoto://card/<id>`, IDs from the
+player's media browser), and dropdowns for multi-card Yoto Club series
+(BrainBots, Dinosaurs…): template selects in `config/packages/yoto.yaml`
+whose state stays unknown, so picking a card always plays it. Its **Music** view plays Spotify on the Sonos speakers (TV
 Room Beam = living room, Dining Room, Hallway). `config/packages/music.yaml`
 holds one `input_boolean.music_*` per room. Its automation groups the chosen
 speakers (debounced 1 s), and `sensor.music_speaker` names the group's
