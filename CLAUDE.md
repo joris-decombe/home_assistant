@@ -88,6 +88,9 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
 - `select.ceiling_lights` and its scripts: Off / Night / Full for both Yeelight
   ceiling lights.
 - `sensor.heat_pumps_today`.
+- `sensor.home_battery`: the Alpha ESS charge level, with a templated name
+  ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") and icon, so the
+  Battery sensor card on both Home views shows the rate too.
 
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the

@@ -1,6 +1,6 @@
 # Wall-phone dashboard helpers: the hourly forecast sensor, the ceiling
-# lights' Off / Night / Full control with its one-tap scripts, and today's
-# heat-pump energy. Loaded as a package: configuration.yaml
+# lights' Off / Night / Full control with its one-tap scripts, today's
+# heat-pump energy and the battery's charge rate. Loaded as a package: configuration.yaml
 # on the Pi has `homeassistant: packages: !include_dir_named packages`. Copy
 # this file to /config/packages/ and reload template entities.
 
@@ -98,6 +98,30 @@ template:
         state: >
           {{ (states('sensor.living_room_heat_pump_today') | float(0)
               + states('sensor.dining_room_heat_pump_today') | float(0)) | round(1) }}
+
+  # The Alpha ESS battery's charge level, named after what it's doing
+  # ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") so the Battery
+  # sensor card shows both. Battery I/O is negative while charging.
+  - sensor:
+      - name: >
+          {% set w = states('sensor.alphaess_instantaneous_battery_i_o') | float(0) %}
+          {% set p = '%.1f kW' | format(w | abs / 1000) if w | abs >= 1000
+                     else '%d W' | format((w | abs / 10) | round * 10) %}
+          {{ 'Charging ' ~ p if w < -20 else 'Discharging ' ~ p if w > 20 else 'Battery idle' }}
+        unique_id: wall_phone_home_battery
+        default_entity_id: sensor.home_battery
+        unit_of_measurement: "%"
+        device_class: battery
+        icon: >
+          {% set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
+          {% set n = (soc / 10) | round | int * 10 %}
+          {% if states('sensor.alphaess_instantaneous_battery_i_o') | float(0) < -20 %}
+            {{ 'mdi:battery-charging-outline' if n == 0 else 'mdi:battery-charging-' ~ n }}
+          {% else %}
+            {{ 'mdi:battery-outline' if n == 0 else 'mdi:battery' if n == 100 else 'mdi:battery-' ~ n }}
+          {% endif %}
+        availability: "{{ has_value('sensor.alphaess_instantaneous_battery_soc') }}"
+        state: "{{ states('sensor.alphaess_instantaneous_battery_soc') | float | round(1) }}"
 
 script:
   # One tap on the wall phone's ceiling-light card: both lights on (in their
