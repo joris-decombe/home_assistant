@@ -61,8 +61,13 @@ they live in `.storage/http`. Change them with the WebSocket call
 
 ## Pi 3 constraints
 
-1 GB RAM. It runs from an SD card (the Intel SSD isn't connected yet), and swap
-already sits around 300–550 MB. Keep add-ons and integrations lean: Matter Server
+1 GB RAM. It boots from the SD card, but since 2026-10-16 the data partition
+(`/mnt/data`: HA config, add-ons, database and the 1 GB swapfile) lives on a 480 GB
+SSD (HPE VK0480GD) in a self-powered VIA USB-SATA enclosure, moved with
+Supervisor's `os/datadisk/move`. The SD card's old copy is left as
+`hassos-data-old`. Swap sits around 300–550 MB. If the enclosure's power comes
+on after the Pi boots, the adapter shows a 0-byte "VirtualDisk" and HA won't
+start; replug it with the enclosure powered. Keep add-ons and integrations lean: Matter Server
 is stopped on purpose (no devices), and the recorder uses `commit_interval: 30`,
 `purge_keep_days: 7`. **Run `sync` after writing files**: a power cut once
 truncated a freshly installed HACS integration to empty files. The `rpi_power`
