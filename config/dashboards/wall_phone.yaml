@@ -465,6 +465,31 @@ views:
           - <<: *room
             entity: input_boolean.music_hallway
             name: Hallway
+          # One-tap playlists in the dining room and hallway (scripts in
+          # config/packages/music.yaml).
+          - &shortcut
+            type: tile
+            entity: script.music_morning_jazz
+            name: Morning jazz
+            color: deep-orange
+            hide_state: true
+            tap_action:
+              action: perform-action
+              perform_action: script.music_morning_jazz
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.music_morning_jazz
+            grid_options:
+              columns: 6
+          - <<: *shortcut
+            entity: script.music_morning_piano
+            name: Morning piano
+            tap_action:
+              action: perform-action
+              perform_action: script.music_morning_piano
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.music_morning_piano
           - &player
             type: media-control
             entity: media_player.tv_room

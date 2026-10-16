@@ -48,6 +48,76 @@ script:
             - input_boolean.music_dining_room
             - input_boolean.music_hallway
 
+  # Play a Spotify playlist in the chosen rooms: switch the rooms, wait for
+  # the regroup automation, then start it on the group's coordinator. Sonos
+  # plays Spotify URIs itself (Spotify must be linked in the Sonos app).
+  music_play_playlist:
+    alias: Music play playlist
+    icon: mdi:playlist-play
+    mode: restart
+    fields:
+      playlist:
+        description: Spotify URI, e.g. spotify:playlist:37i9dQZF1DX71VcjjnyaBQ
+        required: true
+      rooms:
+        description: Room switches to play in (the others are switched off)
+        required: true
+    sequence:
+      - variables:
+          all_rooms:
+            input_boolean.music_living_room: media_player.tv_room
+            input_boolean.music_dining_room: media_player.dining_room
+            input_boolean.music_hallway: media_player.hallway
+          speakers: >
+            {% set ns = namespace(list=[]) %}
+            {% for b in rooms %}{% set ns.list = ns.list + [all_rooms[b]] %}{% endfor %}
+            {{ ns.list | sort }}
+      - action: input_boolean.turn_on
+        target:
+          entity_id: "{{ rooms }}"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ all_rooms.keys() | reject('in', rooms) | list }}"
+      # Regroup even if the switches were already right (grouping done in the
+      # Sonos app or HA's group dialog doesn't move them).
+      - action: automation.trigger
+        target:
+          entity_id: automation.music_rooms_regroup
+      - wait_template: >
+          {{ (state_attr(speakers[0], 'group_members') or []) | sort == speakers }}
+        timeout: 15
+      - action: media_player.play_media
+        target:
+          entity_id: "{{ (state_attr(speakers[0], 'group_members') or speakers)[0] }}"
+        data:
+          media_content_id: "{{ playlist }}"
+          media_content_type: playlist
+          enqueue: replace
+
+  # Wall-phone shortcuts: Spotify's own playlists in the dining room and
+  # hallway.
+  music_morning_jazz:
+    alias: Morning jazz
+    icon: mdi:saxophone
+    sequence:
+      - action: script.music_play_playlist
+        data:
+          # Good Morning Jazz (Spotify)
+          playlist: spotify:playlist:37i9dQZF1DX71VcjjnyaBQ
+          rooms: &morning_rooms
+            - input_boolean.music_dining_room
+            - input_boolean.music_hallway
+
+  music_morning_piano:
+    alias: Morning piano
+    icon: mdi:piano
+    sequence:
+      - action: script.music_play_playlist
+        data:
+          # Coffee and Piano (Spotify)
+          playlist: spotify:playlist:37i9dQZF1DX3TPMgP3ojGS
+          rooms: *morning_rooms
+
 automation:
   - id: music_rooms_regroup
     alias: Music rooms regroup
