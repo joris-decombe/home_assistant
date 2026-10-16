@@ -115,6 +115,11 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.
+- **Yoto** (core integration, cloud, found by DHCP): one player, "Jodie", in
+  Jodie's room (`media_player.jodie`, battery, headphones, and day/night-mode
+  volume, colour and brightness controls). **Spotify** (core, OAuth): the
+  Premium account `pimooss` as `media_player.spotify_pimooss`. Added in
+  October 2026.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
