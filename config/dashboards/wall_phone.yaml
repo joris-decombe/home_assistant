@@ -297,10 +297,12 @@ views:
             entity: sensor.alphaess_instantaneous_load
             name: Using
             icon: mdi:home-lightning-bolt
+          # Charge level; the name and icon say whether it's charging or
+          # discharging and how fast (sensor in the wall-phone package).
           - <<: *power
-            entity: sensor.alphaess_instantaneous_battery_soc
-            name: Battery
-            icon: mdi:battery-charging-50
+            entity: sensor.home_battery
+            name: ~
+            icon: ~
           - <<: *power
             entity: sensor.alphaess_instantaneous_grid_i_o_total
             name: Grid

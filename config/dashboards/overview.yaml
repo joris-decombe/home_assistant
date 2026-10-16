@@ -296,9 +296,7 @@ views:
       detail: 1
       grid_options: *id002
     - type: sensor
-      entity: sensor.alphaess_instantaneous_battery_soc
-      name: Battery
-      icon: mdi:battery-charging-50
+      entity: sensor.home_battery
       graph: line
       hours_to_show: 24
       detail: 1
