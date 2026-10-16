@@ -37,6 +37,12 @@ inbound IPv6 before re-enabling it. LLMNR is off on that interface too; mDNS
   open). Matter Server and its integration were removed (no devices).
   The ESPHome, Music Assistant and Community add-on stores are built in to
   this Supervisor and can't be removed; nothing is installed from them.
+- **UPnP:** stays on at the Deco, because other devices need it. HA's `upnp`
+  integration (router stats only, it never opened ports) was removed and its
+  rediscovery is ignored. With router UPnP on, any LAN device can open an
+  IPv4 port to itself, so check the Deco's UPnP list (More → Advanced → UPnP)
+  now and then for mappings you don't recognise. Nothing should point at the
+  Pi (`.68`): its remote access is the outbound tunnel.
 - **Analytics:** all off.
 - **Custom integrations** (HACS): `alphaess`, `echonetlite`, `evnex`,
   `xiaomi_home`, `hacs`. They run inside HA with full access, so keep the
@@ -46,8 +52,5 @@ inbound IPv6 before re-enabling it. LLMNR is off on that interface too; mDNS
 
 1. **MFA for the owner:** Profile → Security → Multi-factor authentication
    modules → Authenticator app. HA's login is the second gate behind Access.
-2. **Router UPnP:** turn it off in the Deco app (More → Advanced → UPnP) and
-   check there are no port forwards. Then remove HA's `upnp` integration,
-   which only reads router stats.
-3. **Old VM:** the Hyper-V `HomeAssistant` VM holds a full copy of the config
+2. **Old VM:** the Hyper-V `HomeAssistant` VM holds a full copy of the config
    and credentials. Delete it once the Pi has proved itself.
