@@ -6,6 +6,7 @@ Configuration, dashboards and docs for our Home Assistant, which runs as
 - At home: `http://192.168.68.68:8123`
 - Away: `https://home.dx2-66.com` (Cloudflare Tunnel behind Cloudflare Access;
   see [docs/remote-access.md](docs/remote-access.md))
+- Security state and to-dos: [docs/security.md](docs/security.md)
 
 This repo isn't the live configuration. Most of HA's state (integrations,
 helpers, `.storage/`) lives on the Pi. Files here are pushed or copied to it.
