@@ -99,8 +99,10 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
   ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") and icon, so the
   Battery sensor card on both Home views shows the rate too.
 
-Its **Music** view plays Spotify on the Sonos speakers (TV Room Beam = living
-room, Dining Room, Hallway) and shows Jodie's Yoto. `config/packages/music.yaml`
+Its **Kids** view has Jodie's Yoto player and one-tap story tiles
+(`media_player.play_media` with `yoto://card/<id>`, IDs from the player's
+media browser). Its **Music** view plays Spotify on the Sonos speakers (TV
+Room Beam = living room, Dining Room, Hallway). `config/packages/music.yaml`
 holds one `input_boolean.music_*` per room. Its automation groups the chosen
 speakers (debounced 1 s), and `sensor.music_speaker` names the group's
 coordinator, which picks the player card that shows. Spotify music is chosen

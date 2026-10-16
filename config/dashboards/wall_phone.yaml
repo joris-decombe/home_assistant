@@ -428,7 +428,8 @@ views:
       # mix; "Everywhere" picks all three): config/packages/music.yaml groups
       # them, and the player shows the group's coordinator, picked by
       # sensor.music_speaker. To choose music, tap the player, then Browse
-      # media > pimooss. A volume slider appears for each chosen room.
+      # media > pimooss. A volume slider appears for each chosen room. Jodie's
+      # Yoto is on the Kids view.
       - type: grid
         cards:
           - type: heading
@@ -547,8 +548,14 @@ views:
                 entity: input_boolean.music_hallway
                 state: "on"
 
+  - title: Kids
+    path: kids
+    icon: mdi:teddy-bear
+    type: sections
+    max_columns: 1
+    sections:
       # Jodie's Yoto player (Yoto integration, cloud). It only plays Yoto
-      # cards: tap the player, then Browse media for the card library.
+      # cards: tap the player, then Browse media for the whole card library.
       - type: grid
         cards:
           - type: heading
@@ -581,6 +588,103 @@ views:
             name: Volume
             icon: mdi:volume-high
             visibility: []
+
+      # One tap plays a card from Jodie's Yoto library on her player. IDs
+      # come from the player's media browser (yoto://card/<id>).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Stories
+            heading_style: subtitle
+            icon: mdi:book-open-page-variant
+          - &story
+            type: tile
+            entity: media_player.jodie
+            name: Tintin
+            icon: mdi:rocket
+            color: blue
+            hide_state: true
+            tap_action: &play_story
+              action: perform-action
+              perform_action: media_player.play_media
+              target:
+                entity_id: media_player.jodie
+              data:
+                media_content_id: yoto://card/e04g5
+                media_content_type: music
+            icon_tap_action: *play_story
+            grid_options:
+              columns: 6
+          - <<: *story
+            name: Les odyssées
+            icon: mdi:compass-rose
+            color: deep-orange
+            tap_action: &play_odyssees
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/cUqRz
+                media_content_type: music
+            icon_tap_action: *play_odyssees
+          - <<: *story
+            name: Oli
+            icon: mdi:weather-night
+            color: indigo
+            tap_action: &play_oli
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/8mvD4
+                media_content_type: music
+            icon_tap_action: *play_oli
+          - <<: *story
+            name: Bestioles
+            icon: mdi:ladybug
+            color: red
+            tap_action: &play_bestioles
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/d3PX8
+                media_content_type: music
+            icon_tap_action: *play_bestioles
+          - <<: *story
+            name: Les Zinstrus
+            icon: mdi:violin
+            color: amber
+            tap_action: &play_zinstrus
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/erZr1
+                media_content_type: music
+            icon_tap_action: *play_zinstrus
+          - <<: *story
+            name: Prince de Motordu
+            icon: mdi:crown
+            color: purple
+            tap_action: &play_motordu
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/8tQBt
+                media_content_type: music
+            icon_tap_action: *play_motordu
+          - <<: *story
+            name: Zébulon
+            icon: mdi:fire
+            color: green
+            tap_action: &play_zebulon
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/dLe7m
+                media_content_type: music
+            icon_tap_action: *play_zebulon
+          - <<: *story
+            name: Gruffalo
+            icon: mdi:paw
+            color: brown
+            tap_action: &play_gruffalo
+              <<: *play_story
+              data:
+                media_content_id: yoto://card/cxuNI
+                media_content_type: music
+            icon_tap_action: *play_gruffalo
 
   - title: Power
     path: power

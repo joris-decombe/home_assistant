@@ -4,8 +4,9 @@ An old Galaxy Note 9 on the wall, permanently on the charger, showing the
 **Wall Phone** dashboard (`config/dashboards/wall_phone.yaml`): clock and weather,
 live solar / load / battery / grid with a power-flow chart, and tap-to-toggle
 tiles for lights and heat pumps. Power figures are read-only. The **Music**
-tab picks which Sonos rooms play Spotify (any mix, or *Everywhere*) and shows
-Jodie's Yoto player. To choose what plays, tap a player, then *Browse media*.
+tab picks which Sonos rooms play Spotify (any mix, or *Everywhere*). The
+**Kids** tab has Jodie's Yoto player and one-tap stories (Tintin, Les
+odyssées, Oli…). To choose anything else, tap a player, then *Browse media*.
 Its helpers are in [`config/packages/music.yaml`](../config/packages/music.yaml).
 
 Push changes to the dashboard with:
