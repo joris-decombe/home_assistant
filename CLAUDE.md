@@ -77,9 +77,11 @@ normal; repeated events while running mean a power problem.
 ## Backups
 
 Automatic backups: daily at 03:30, keeping 7, encrypted, stored on
-`hassio.local` and `google_drive.jorisdecombe_gmail_com`. They're configured
-over WebSocket (`backup/config/info`, `backup/config/update`). Google Drive is a
-stopgap: the user wants a scoped **Backblaze B2** bucket long term. Never print
+`hassio.local` and Cloudflare R2 (bucket `ha-backups`, agent
+`cloudflare_r2.01M51F575WQ0ZWVYBWK4NWSR5V`, bucket-scoped token). They're
+configured over WebSocket (`backup/config/info`, `backup/config/update`);
+`backup/info` shows which agents hold each backup. Google Drive was removed
+(integration and OAuth client) in October 2026. Never print
 the encryption key; the owner downloads it from the UI.
 
 ## Wall-phone dashboard

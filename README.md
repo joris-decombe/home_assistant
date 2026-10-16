@@ -47,7 +47,9 @@ isn't used.
 ## Backups
 
 Nightly at 03:30, keeping 7. Backups are encrypted and stored both on the Pi and
-in Google Drive (the integration only sees its own "Home Assistant" folder). The
-plan is to move to a Backblaze B2 bucket with a key scoped to that bucket. **Keep
-the encryption key** (Settings → System → Backups → Configure → Encryption key →
+in the Cloudflare R2 bucket `ha-backups`, through HA's built-in Cloudflare R2
+integration. Its API token is scoped to that bucket with Object Read & Write
+only. A backup is about 60 MB, so 7 copies fit well inside R2's 10 GB free tier.
+(HA's AWS S3 integration only works with Amazon, so R2 needs its own
+integration.) **Keep the encryption key** (Settings → System → Backups → Configure → Encryption key →
 download the emergency kit), because a backup can't be restored without it.
