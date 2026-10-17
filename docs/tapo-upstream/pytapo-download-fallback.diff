@@ -1,0 +1,100 @@
+diff --git a/README.md b/README.md
+index 0668cbe..7e88502 100644
+--- a/README.md
++++ b/README.md
+@@ -80,7 +80,7 @@ You also need to have ffmpeg installed as that is used for converting the stream
+ 
+ Recordings are downloaded through the camera's encrypted streaming protocol (`/stream`). The camera does not expose the raw MP4 files directly, so a true "file copy" is not possible; the stream is AES-decrypted and the resulting MPEG-TS data is remuxed into an MP4 container by ffmpeg (the video track is copied as-is, the audio track is re-encoded to AAC).
+ 
+-Two stream requests exist for this. By default the `Downloader` sends the `download` request, the one the Tapo app sends when you tap download on a recording: the camera delivers the clip as fast as the link allows (about 10x realtime on Wi-Fi), with the full frame rate and the audio, and ends the stream itself at `end_time`. The older `playback` request plays the recording at realtime speed and keeps going past `end_time`, so a one minute clip takes a minute to download. If a camera does not accept the `download` request, the `Downloader` falls back to `playback` on its own.
++Two stream requests exist for this. By default the `Downloader` sends the `download` request, the one the Tapo app sends when you tap download on a recording: the camera delivers the clip as fast as the link allows (about 10x realtime on Wi-Fi), with the full frame rate and the audio, and ends the stream itself at `end_time`. The older `playback` request plays the recording at realtime speed and keeps going past `end_time`, so a one minute clip takes a minute to download. If a camera does not accept the `download` request, or ends it without sending any data (cameras behind an H200 hub do), the `Downloader` falls back to `playback` on its own.
+ 
+ The camera also keeps a thumbnail for every recording on the SD card (the picture the Tapo app shows in its playback list). You can fetch it without downloading the clip:
+ 
+diff --git a/pytapo/media_stream/downloader.py b/pytapo/media_stream/downloader.py
+index 60317dc..4d54c9c 100644
+--- a/pytapo/media_stream/downloader.py
++++ b/pytapo/media_stream/downloader.py
+@@ -357,6 +357,14 @@ class Downloader:
+                         }
+                         downloading = False
+                         continue
++                    if self.method == "download" and not unsupported and not dataChunks:
++                        # Cameras behind an H200 hub (firmware 1.7.7) end the download
++                        # request without an error and without any data, but answer
++                        # the playback request.
++                        self.tapo.logger.debugLog(
++                            "Download request returned no data, falling back to playback."
++                        )
++                        unsupported = True
+                     if unsupported:
+                         self.method = "playback"
+                         continue
+diff --git a/test_pytapo.py b/test_pytapo.py
+index c37c7d2..3961ffc 100644
+--- a/test_pytapo.py
++++ b/test_pytapo.py
+@@ -1028,6 +1028,63 @@ def test_downloader_reports_busy_camera(tmp_path):
+     assert [list(r["params"])[0] for r in BusySession.requests] == ["download"]
+ 
+ 
++def test_downloader_falls_back_when_download_sends_nothing(tmp_path):
++    import asyncio
++    from pytapo.media_stream.downloader import Downloader
++
++    class Resp:
++        def __init__(self, mimetype, plaintext):
++            self.mimetype, self.plaintext = mimetype, plaintext
++            self.audioPayload, self.audioPayloadType = b"", None
++
++    class SilentSession:
++        requests = []
++
++        def set_window_size(self, n):
++            pass
++
++        async def __aenter__(self):
++            return self
++
++        async def __aexit__(self, *a):
++            return False
++
++        async def transceive(self, payload, no_data_timeout=None):
++            SilentSession.requests.append(json.loads(payload))
++            # accepted, then the stream just ends: no error code, no video
++            yield Resp(
++                "application/json",
++                b'{"type":"response","seq":1,"params":{"error_code":0,"session_id":"7"}}',
++            )
++
++    class FakeTapo:
++        playerID = "abc"
++
++        class logger:
++            @staticmethod
++            def debugLog(m):
++                pass
++
++        def getUserID(self):
++            return 1
++
++        def getAudioConfig(self):
++            return {"audio_config": {"microphone": {"sampling_rate": "8"}}}
++
++        def getMediaSession(self, kind):
++            return SilentSession()
++
++    d = Downloader(FakeTapo(), 1000, 1066, 0, outputDirectory=str(tmp_path) + "/")
++
++    async def run():
++        return [s async for s in d.download()]
++
++    states = asyncio.run(run())
++    assert d.method == "playback"
++    kinds = [list(r["params"])[0] for r in SilentSession.requests]
++    assert kinds[:2] == ["download", "playback"]
++    assert states[-1]["currentAction"] == "Giving up"
++
+ def test_downloader_request_download_and_playback():
+     from pytapo.media_stream.downloader import Downloader
+ 
