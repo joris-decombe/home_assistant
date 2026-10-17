@@ -19,7 +19,7 @@ views:
       # Clock with the next sunset (by day) or sunrise (at night) and current
       # weather, then the wind. The headline flags a wind
       # change of 90 degrees or more (e.g. northerly to southerly) and the
-      # 24 h peak; the chart below shows the next 24 h.
+      # 12 h peak; the chart below shows the next 12 h.
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
       - type: grid
         column_span: 2
@@ -38,7 +38,7 @@ views:
               {%- set w = states.weather.forecast_home.attributes %}
               {%- set i0 = sector(w.wind_bearing) | int %}
               {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
-              {%- for f in fc %}
+              {%- for f in fc[:12] %}
               {%- set d = (sector(f.wind_bearing) | int - i0) % 8 %}
               {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
@@ -49,17 +49,17 @@ views:
               {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
               {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
-          # Last 6 h (grey band, dashed: what the weather entity recorded) and
-          # the next 24 h: a row of condition icons along the top every 3 h,
+          # Last 3 h (grey band, dashed: what the weather entity recorded) and
+          # the next 12 h: a row of condition icons along the top every 2 h,
           # wind (blue, km/h, left axis) labelled with its direction,
           # temperature (orange, °C, right axis) and rain as a pale blue band. Needs
           # the ApexCharts card (HACS); the labels read sensor.hourly_forecast
           # in the same order as the points.
           - type: custom:apexcharts-card
-            graph_span: 30h
+            graph_span: 15h
             span:
               start: hour
-              offset: -6h
+              offset: -3h
             now:
               show: true
               color: '#9e9e9e'
@@ -129,7 +129,7 @@ views:
                 formatter: |
                   EVAL:function (val, opts) {
                     const i = opts.dataPointIndex;
-                    if (i % 3 !== 0) return '';
+                    if (i % 2 !== 0) return '';
                     const hass = document.querySelector('home-assistant').hass;
                     const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
                     if (!f) return '';
@@ -142,7 +142,7 @@ views:
                     const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
                     return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
                   }
-            yaxis:
+            yaxis: &forecast_yaxis
               # Soft ranges (~): round ticks, stretched only if the forecast
               # goes beyond them.
               - id: wind
@@ -186,7 +186,7 @@ views:
                 show:
                   datalabels: true
                 data_generator: |
-                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+                  return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
               - entity: sensor.hourly_forecast
                 name: Temperature
                 yaxis_id: temp
@@ -196,7 +196,7 @@ views:
                 stroke_width: 2
                 unit: ' °C'
                 data_generator: |
-                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+                  return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.temperature]);
               - entity: sensor.hourly_forecast
                 name: Rain
                 yaxis_id: rain
@@ -207,7 +207,7 @@ views:
                 stroke_width: 0
                 unit: ' mm'
                 data_generator: |
-                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+                  return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.precipitation]);
               - entity: sensor.hourly_forecast
                 name: Sky
                 yaxis_id: sky
@@ -217,7 +217,7 @@ views:
                 show:
                   datalabels: true
                 data_generator: |
-                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
+                  return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), 0.94]);
               # Observed so far (dashed), from the weather entity's history.
               - entity: weather.forecast_home
                 attribute: wind_speed
@@ -461,9 +461,142 @@ views:
             grid_options:
               columns: 6
 
-      # Least urgent, so below the controls.
+      # Least urgent, so below the controls: the next 24 h (the same chart as
+      # the one at the top, without the past, labels every 3 h from +1 h), then the
+      # coming days.
       - type: grid
         cards:
+          - type: heading
+            heading: Forecast
+            heading_style: subtitle
+            icon: mdi:weather-partly-cloudy
+          - type: custom:apexcharts-card
+            graph_span: 24h
+            span:
+              start: hour
+            header:
+              show: false
+            grid_options:
+              columns: full
+            apex_config:
+              chart:
+                height: 180
+                parentHeightOffset: 0
+              legend:
+                show: false
+              title:
+                text: km/h
+                align: left
+                offsetX: 4
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#1e88e5'
+              subtitle:
+                text: °C
+                align: right
+                offsetX: -4
+                offsetY: 0
+                style:
+                  fontSize: 11px
+                  fontWeight: 500
+                  color: '#fb8c00'
+              tooltip:
+                enabled: false
+              grid:
+                borderColor: rgba(127, 127, 127, 0.2)
+                strokeDashArray: 3
+                padding:
+                  left: 6
+                  right: 14
+                  top: -14
+                  bottom: -4
+              xaxis:
+                axisBorder:
+                  show: false
+                axisTicks:
+                  show: false
+                labels:
+                  format: HH:mm
+                  style:
+                    colors: var(--secondary-text-color)
+              fill:
+                type: [gradient, solid, solid, solid]
+                gradient:
+                  shadeIntensity: 0
+                  opacityFrom: 0.35
+                  opacityTo: 0.02
+                  stops: [0, 100]
+              dataLabels:
+                enabledOnSeries: [0, 3]
+                background:
+                  enabled: false
+                offsetY: -8
+                style:
+                  fontSize: 12px
+                  fontWeight: 600
+                  colors: ['#1565c0', '#000', '#000', '#000']
+                formatter: |
+                  EVAL:function (val, opts) {
+                    const i = opts.dataPointIndex;
+                    if (i % 3 !== 1) return '';
+                    const hass = document.querySelector('home-assistant').hass;
+                    const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
+                    if (!f) return '';
+                    if (opts.seriesIndex === 3) return {
+                      'clear-night': '🌙', 'cloudy': '☁️', 'exceptional': '⚠️', 'fog': '🌫️',
+                      'hail': '🌨️', 'lightning': '🌩️', 'lightning-rainy': '⛈️',
+                      'partlycloudy': '⛅', 'pouring': '☔', 'rainy': '🌧️', 'snowy': '❄️',
+                      'snowy-rainy': '🌨️', 'sunny': '☀️', 'windy': '🌬️', 'windy-variant': '🌬️',
+                    }[f.condition] || '';
+                    const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
+                    return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
+                  }
+            yaxis: *forecast_yaxis
+            series:
+              - entity: sensor.hourly_forecast
+                name: Wind
+                yaxis_id: wind
+                type: area
+                color: '#1e88e5'
+                curve: smooth
+                stroke_width: 2.5
+                unit: ' km/h'
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+              - entity: sensor.hourly_forecast
+                name: Temperature
+                yaxis_id: temp
+                type: line
+                color: '#fb8c00'
+                curve: smooth
+                stroke_width: 2
+                unit: ' °C'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+              - entity: sensor.hourly_forecast
+                name: Rain
+                yaxis_id: rain
+                type: area
+                curve: stepline
+                color: '#42a5f5'
+                opacity: 0.35
+                stroke_width: 0
+                unit: ' mm'
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+              - entity: sensor.hourly_forecast
+                name: Sky
+                yaxis_id: sky
+                type: line
+                color: transparent
+                stroke_width: 0
+                show:
+                  datalabels: true
+                data_generator: |
+                  return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
           - type: weather-forecast
             entity: weather.forecast_home
             show_current: false
