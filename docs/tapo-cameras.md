@@ -104,8 +104,25 @@ cd config/custom_components && tar cf - tapo_events | ssh -i ~/.ssh/ha-rpi -p 22
 Debug logs: call `logger.set_level` with `custom_components.tapo_events: debug`.
 pytapo's own debug output is routed there during downloads.
 
+**One login per hub.** The H200 keeps one session per account. Tapo Control
+logs in twice per hub, once as the hub and once as its camera, so each login
+logged the other out (`-40401` in its debug log). With `tapo_events` polling
+every 10 s, the hub's own entities (siren, LED…) kept going unavailable: 8
+session errors in 3 minutes, against 0 with `tapo_events` paused. On discovery,
+`tapo_events` therefore points the camera controller's `transport` at the hub
+controller's, so both share one login (camera requests are only wrapped in
+`controlChild`). Media sessions (live view, clips) authenticate separately on
+port 8800 and aren't affected.
+
 It depends on Tapo Control's internals (`hass.data["tapo_control"][entry_id]
-["childDevices"][i]["controller"]`), so check it after Tapo Control updates.
+["childDevices"][i]["controller"]` and pytapo's `transport`), so check it after
+Tapo Control updates.
+
+Tapo Control also treats the hubs as battery-powered, so it refreshes their own
+entities only every 10 minutes.
+
+The garage hub is two Deco Wi-Fi hops away, so its logins and requests are
+slower than the house hub's.
 
 ## Dashboards
 

@@ -86,10 +86,21 @@ class Poller:
         for entry_data in (self.hass.data.get(TAPO_CONTROL) or {}).values():
             if not isinstance(entry_data, dict):
                 continue
+            hub = entry_data.get("controller")
             for child in entry_data.get("childDevices") or []:
                 info = (child.get("camData") or {}).get("basic_info") or {}
-                if child.get("controller") and info.get("dev_id"):
-                    yield info["dev_id"], child
+                controller = child.get("controller")
+                if not controller or not info.get("dev_id"):
+                    continue
+                # Tapo Control logs in to the hub twice (hub and camera), and
+                # the H200 keeps one session per account: each login logs the
+                # other out (-40401), so with this polling the hub's entities
+                # kept going unavailable. Share the hub's login; camera
+                # requests only add a controlChild wrapper on top of it.
+                if hub and getattr(controller, "transport", None) is not hub.transport:
+                    _LOGGER.debug("%s: sharing the hub's session", info["dev_id"])
+                    controller.transport = hub.transport
+                yield info["dev_id"], child
 
     async def async_poll(self, _now=None) -> None:
         if self._busy:
