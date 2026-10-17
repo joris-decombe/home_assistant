@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tapo hub camera events",
+        "description": "Adds motion, person and vehicle events for the cameras behind your Tapo hubs. It uses the hubs set up in Tapo: Cameras Control, so there is nothing to enter."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already set up."
+    }
+  }
+}

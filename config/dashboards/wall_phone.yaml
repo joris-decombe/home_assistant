@@ -418,6 +418,264 @@ views:
             grid_options:
               columns: full
 
+  # The two Tapo C420 battery cameras behind their H200 hubs. Pictures are a
+  # frame from each camera's latest clip (image.*_last_event, from the
+  # tapo_events integration), so leaving this view open never wakes a
+  # camera. Live video only runs while the camera dialog is open: the SD
+  # stream (720p), since the Pi 3 has to transcode it to MJPEG. See
+  # docs/tapo-cameras.md.
+  - title: Cameras
+    path: cameras
+    icon: mdi:cctv
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          # What's happening now, or the latest clip of either camera.
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set cams = [['Front door', 'camera_front_door'], ['Garage', 'camera_garage']] %}
+              {%- set ns = namespace(now=[], t=0, last='') %}
+              {%- for name, id in cams %}
+              {%- for kind in ['person', 'vehicle', 'motion'] %}
+              {%- if is_state('binary_sensor.' ~ id ~ '_' ~ kind, 'on') and name not in ns.now | join %}
+              {%- set ns.now = ns.now + [{'person': 'Person', 'vehicle': 'Vehicle', 'motion': 'Movement'}[kind] ~ ' at the ' ~ name | lower] %}
+              {%- endif %}
+              {%- endfor %}
+              {%- set t = as_timestamp(states('image.' ~ id ~ '_last_event'), 0) %}
+              {%- if t > ns.t %}{% set ns.t = t %}{% set ns.last = name ~ ', ' ~ state_attr('image.' ~ id ~ '_last_event', 'detection') %}{% endif %}
+              {%- endfor %}
+              {%- if ns.now %}
+              ## <ha-icon icon="mdi:motion-sensor"></ha-icon> {{ ns.now | join(' · ') }}
+              {%- else %}
+              ## <ha-icon icon="mdi:shield-check-outline"></ha-icon> All quiet
+              {%- endif %}
+              {%- if ns.t %}
+              Last clip: {{ ns.last }}, {{ relative_time(ns.t | as_datetime) }} ago
+              {%- endif %}
+
+      - type: grid
+        cards:
+          # Badges: what it sees right now (only while it lasts) and battery.
+          - type: heading
+            heading: Front door
+            heading_style: title
+            icon: mdi:door-closed
+            badges:
+              - &now_badge
+                type: entity
+                entity: binary_sensor.camera_front_door_person
+                name: Person
+                show_name: true
+                show_state: false
+                icon: mdi:walk
+                color: red
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_front_door_person
+                    state: "on"
+              - <<: *now_badge
+                entity: binary_sensor.camera_front_door_vehicle
+                name: Vehicle
+                icon: mdi:car
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_front_door_vehicle
+                    state: "on"
+              - <<: *now_badge
+                entity: binary_sensor.camera_front_door_motion
+                name: Movement
+                icon: mdi:motion-sensor
+                color: orange
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_front_door_motion
+                    state: "on"
+                  - condition: state
+                    entity: binary_sensor.camera_front_door_person
+                    state: "off"
+                  - condition: state
+                    entity: binary_sensor.camera_front_door_vehicle
+                    state: "off"
+              - type: entity
+                entity: sensor.camera_front_door_battery_2
+                color: green
+                tap_action:
+                  action: none
+          # Latest clip's frame; the play button opens live video.
+          - type: picture-elements
+            image_entity: image.camera_front_door_last_event
+            grid_options:
+              columns: full
+            elements:
+              - type: icon
+                icon: mdi:play-circle
+                title: Live
+                tap_action:
+                  action: more-info
+                  entity: camera.camera_front_door_sd_stream_direct
+                style:
+                  top: 50%
+                  left: 50%
+                  color: white
+                  opacity: "0.85"
+                  --mdc-icon-size: 72px
+                  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6))
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set img = 'image.camera_front_door_last_event' %}
+              {%- set t = states(img) %}
+              {%- if t not in ['unknown', 'unavailable'] %}
+              **{{ state_attr(img, 'detection') | capitalize }}** · {{ as_timestamp(t) | timestamp_custom('%a %H:%M') }} · {{ relative_time(t | as_datetime) }} ago
+              {%- else %}
+              No clips in the last 7 days
+              {%- endif %}
+          - &floodlight
+            type: tile
+            entity: light.camera_front_door_floodlight_timed
+            name: Light
+            icon: mdi:light-flood-down
+            color: amber
+            tap_action:
+              action: toggle
+            grid_options:
+              columns: 4
+          - &siren
+            type: tile
+            entity: siren.camera_front_door_siren
+            name: Siren
+            icon: mdi:alarm-light
+            color: red
+            tap_action:
+              action: toggle
+              confirmation:
+                text: Sound the front door siren?
+            grid_options:
+              columns: 4
+          # The camera's clips in the Media panel (/media/tapo, 7 days).
+          - &clips
+            type: tile
+            entity: image.camera_front_door_last_event
+            name: Clips
+            icon: mdi:filmstrip-box-multiple
+            color: blue
+            hide_state: true
+            tap_action:
+              action: navigate
+              navigation_path: /media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo%2FCamera%20Front%20Door
+            grid_options:
+              columns: 4
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Garage
+            heading_style: title
+            icon: mdi:garage
+            badges:
+              - <<: *now_badge
+                entity: binary_sensor.camera_garage_person
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_garage_person
+                    state: "on"
+              - <<: *now_badge
+                entity: binary_sensor.camera_garage_vehicle
+                name: Vehicle
+                icon: mdi:car
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_garage_vehicle
+                    state: "on"
+              - <<: *now_badge
+                entity: binary_sensor.camera_garage_motion
+                name: Movement
+                icon: mdi:motion-sensor
+                color: orange
+                visibility:
+                  - condition: state
+                    entity: binary_sensor.camera_garage_motion
+                    state: "on"
+                  - condition: state
+                    entity: binary_sensor.camera_garage_person
+                    state: "off"
+                  - condition: state
+                    entity: binary_sensor.camera_garage_vehicle
+                    state: "off"
+              - type: entity
+                entity: sensor.camera_garage_battery_2
+                color: green
+                tap_action:
+                  action: none
+          - type: picture-elements
+            image_entity: image.camera_garage_last_event
+            grid_options:
+              columns: full
+            elements:
+              - type: icon
+                icon: mdi:play-circle
+                title: Live
+                tap_action:
+                  action: more-info
+                  entity: camera.camera_garage_sd_stream_direct
+                style:
+                  top: 50%
+                  left: 50%
+                  color: white
+                  opacity: "0.85"
+                  --mdc-icon-size: 72px
+                  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6))
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set img = 'image.camera_garage_last_event' %}
+              {%- set t = states(img) %}
+              {%- if t not in ['unknown', 'unavailable'] %}
+              **{{ state_attr(img, 'detection') | capitalize }}** · {{ as_timestamp(t) | timestamp_custom('%a %H:%M') }} · {{ relative_time(t | as_datetime) }} ago
+              {%- else %}
+              No clips in the last 7 days
+              {%- endif %}
+          - <<: *floodlight
+            entity: light.camera_garage_floodlight_timed
+          - <<: *siren
+            entity: siren.camera_garage_siren
+            tap_action:
+              action: toggle
+              confirmation:
+                text: Sound the garage siren?
+          - <<: *clips
+            entity: image.camera_garage_last_event
+            tap_action:
+              action: navigate
+              navigation_path: /media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo%2FCamera%20Garage
+
+      # Detections since midnight-ish, newest first (both cameras).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Last 24 hours
+            heading_style: subtitle
+            icon: mdi:timeline-clock-outline
+          - type: logbook
+            hours_to_show: 24
+            grid_options:
+              columns: full
+            target:
+              entity_id:
+                - event.camera_front_door_detection
+                - event.camera_garage_detection
+
   - title: Power
     path: power
     icon: mdi:solar-power-variant

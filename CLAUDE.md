@@ -39,6 +39,10 @@ ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.68.68 'cat > /mnt/data/supervisor/hom
 ```
 On the HAOS host, `/config` is `/mnt/data/supervisor/homeassistant`.
 
+**Custom integrations** (`config/custom_components/<name>/` →
+`/config/custom_components/`): tar them over the same SSH, `sync`, then restart
+HA. A config entry reload doesn't re-import changed Python modules.
+
 **HTTP settings** (proxy, IP bans) are **not** read from YAML on this HA version:
 they live in `.storage/http`. Change them with the WebSocket call
 `http/config/configure` (stores them as *pending* and restarts HA), then
@@ -81,8 +85,10 @@ Automatic backups: daily at 03:30, keeping 7, encrypted, stored on
 `cloudflare_r2.01M51F575WQ0ZWVYBWK4NWSR5V`, bucket-scoped token). They're
 configured over WebSocket (`backup/config/info`, `backup/config/update`);
 `backup/info` shows which agents hold each backup. Google Drive was removed
-(integration and OAuth client) in October 2026. Never print
-the encryption key; the owner downloads it from the UI.
+(integration and OAuth client) in October 2026. Folders included: `share` and
+`ssl` only; `/media` is left out on purpose (camera clips). Never print
+the encryption key (`backup/config/info` returns it, so filter that call's
+output); the owner downloads it from the UI.
 
 ## Wall-phone dashboard
 
@@ -117,6 +123,14 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   power sensors feed the `power-sankey` cards.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
+- **Tapo cameras:** two C420 battery cameras behind H200 hubs (`.57` house,
+  `.97` garage); no RTSP or ONVIF. Live view and controls come from **Tapo
+  Control** (HACS). Events and clips come from **`tapo_events`**
+  (`config/custom_components/`), which reuses Tapo Control's connections and
+  copies detection clips to `/media/tapo`, keeping 7 days. The core TP-Link
+  entries for the hubs are disabled on purpose (both on one hub caused
+  errors). Never print or store the Tapo password outside HA. See
+  `docs/tapo-cameras.md`.
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
   Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.68.68:8123`
   stays the address for the wall phone, MCP and the Xiaomi sign-in.

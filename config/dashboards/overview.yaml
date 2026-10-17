@@ -818,53 +818,134 @@ views:
   path: security
   icon: mdi:cctv
   badges: []
+  # Tapo C420 battery cameras behind H200 hubs, through Tapo Control (HACS) and
+  # tapo_events (config/custom_components). Pictures are each camera's latest
+  # clip, so the view never wakes a camera; the play button opens live video
+  # (SD stream: the Pi 3 transcodes it). Clips: Media > My media > tapo.
+  # See docs/tapo-cameras.md.
   cards:
-  - type: markdown
-    content: Live video for the Tapo C420 battery cameras is only available in the Tapo app; they expose
-      no local stream to Home Assistant.
+  - type: vertical-stack
+    cards:
+    - type: picture-elements
+      title: Front Door
+      image_entity: image.camera_front_door_last_event
+      elements:
+      - type: icon
+        icon: mdi:play-circle
+        title: Live
+        tap_action:
+          action: more-info
+          entity: camera.camera_front_door_sd_stream_direct
+        style:
+          top: 50%
+          left: 50%
+          color: white
+          opacity: '0.85'
+          --mdc-icon-size: 72px
+          filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6))
+    - type: entities
+      show_header_toggle: false
+      entities:
+      - entity: image.camera_front_door_last_event
+        name: Last clip
+        secondary_info: last-changed
+      - entity: binary_sensor.camera_front_door_motion
+        name: Movement
+      - entity: binary_sensor.camera_front_door_person
+        name: Person
+      - entity: binary_sensor.camera_front_door_vehicle
+        name: Vehicle
+      - entity: sensor.camera_front_door_battery_2
+        name: Battery
+      - entity: light.camera_front_door_floodlight_timed
+        name: Floodlight
+      - entity: siren.camera_front_door_siren
+        name: Siren
+      - entity: switch.camera_front_door_privacy
+        name: Privacy mode
+      - type: section
+        label: Detection
+      - entity: select.camera_front_door_motion_detection
+        name: Motion
+      - entity: select.camera_front_door_person_detection
+        name: Person
+      - entity: select.camera_front_door_vehicle_detection
+        name: Vehicle
+      - entity: select.camera_front_door_pet_detection
+        name: Pet
+      - entity: switch.camera_front_door_indicator_led
+        name: Status LED
+  - type: vertical-stack
+    cards:
+    - type: picture-elements
+      title: Garage
+      image_entity: image.camera_garage_last_event
+      elements:
+      - type: icon
+        icon: mdi:play-circle
+        title: Live
+        tap_action:
+          action: more-info
+          entity: camera.camera_garage_sd_stream_direct
+        style:
+          top: 50%
+          left: 50%
+          color: white
+          opacity: '0.85'
+          --mdc-icon-size: 72px
+          filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.6))
+    - type: entities
+      show_header_toggle: false
+      entities:
+      - entity: image.camera_garage_last_event
+        name: Last clip
+        secondary_info: last-changed
+      - entity: binary_sensor.camera_garage_motion
+        name: Movement
+      - entity: binary_sensor.camera_garage_person
+        name: Person
+      - entity: binary_sensor.camera_garage_vehicle
+        name: Vehicle
+      - entity: sensor.camera_garage_battery_2
+        name: Battery
+      - entity: light.camera_garage_floodlight_timed
+        name: Floodlight
+      - entity: siren.camera_garage_siren
+        name: Siren
+      - entity: switch.camera_garage_privacy
+        name: Privacy mode
+      - type: section
+        label: Detection
+      - entity: select.camera_garage_motion_detection
+        name: Motion
+      - entity: select.camera_garage_person_detection
+        name: Person
+      - entity: select.camera_garage_vehicle_detection
+        name: Vehicle
+      - entity: select.camera_garage_pet_detection
+        name: Pet
+      - entity: switch.camera_garage_indicator_led
+        name: Status LED
+  - type: logbook
+    title: Detections, last 24 hours
+    hours_to_show: 24
+    target:
+      entity_id:
+      - event.camera_front_door_detection
+      - event.camera_garage_detection
   - type: entities
-    title: Front Door Camera
-    icon: mdi:cctv
-    show_header_toggle: false
-    entities:
-    - entity: switch.camera_front_door_camera_front_door
-      name: Camera
-    - entity: switch.camera_front_door_motion_detection
-      name: Motion Detection
-    - entity: switch.camera_front_door_person_detection
-      name: Person Detection
-    - entity: switch.camera_front_door_led
-      name: Status LED
-    - entity: sensor.camera_front_door_battery
-      name: Battery
-  - type: entities
-    title: Garage Camera
-    icon: mdi:cctv
-    show_header_toggle: false
-    entities:
-    - entity: switch.camera_garage_camera_garage
-      name: Camera
-    - entity: switch.camera_garage_motion_detection
-      name: Motion Detection
-    - entity: switch.camera_garage_person_detection
-      name: Person Detection
-    - entity: switch.camera_garage_led
-      name: Status LED
-    - entity: sensor.camera_garage_battery
-      name: Battery
-  - type: entities
-    title: Hubs & Sirens
+    title: Hubs
     icon: mdi:alarm-light
     show_header_toggle: false
     entities:
-    - entity: siren.tapo_hub_maison
-      name: House Siren
-    - entity: select.tapo_hub_maison_alarm_sound
-      name: House Alarm Sound
-    - entity: siren.tapo_hub_garage
-      name: Garage Siren
-    - entity: select.tapo_hub_garage_alarm_sound
-      name: Garage Alarm Sound
+    - entity: siren.tapo_hub_maison_siren
+      name: House siren
+    - entity: select.tapo_hub_maison_siren_type
+      name: House siren sound
+    - entity: siren.tapo_hub_garage_siren
+      name: Garage siren
+    - entity: select.tapo_hub_garage_siren_type
+      name: Garage siren sound
 - title: Plugs
   path: plugs
   icon: mdi:power-socket
