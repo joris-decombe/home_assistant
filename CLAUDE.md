@@ -18,7 +18,8 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 - `config/dashboards/overview.yaml` is the source of truth for the main
   Overview dashboard (pushed with no `url_path`). Its Home headline and wind
   chart are copies of the wall phone's: change `wall_phone.yaml` first, then
-  copy them across.
+  copy them across. The same goes for `config/dashboards/ipad.yaml`
+  (`ipad-home`), which is the wall phone's dashboard in three columns.
 
 ## Pushing changes to the Pi
 
@@ -28,7 +29,8 @@ HASS_TOKEN=... uv run --with pyyaml --with websockets scripts/push_dashboard.py 
 ```
 Pass the dashboard's `url_path` (e.g. `wall-phone`). Without one it pushes to the
 main **Overview** dashboard, which is only right for
-`config/dashboards/overview.yaml`. It creates the dashboard if it doesn't exist.
+`config/dashboards/overview.yaml`. It creates the dashboard if it doesn't exist
+(an optional third argument sets its sidebar icon, e.g. `mdi:tablet`).
 
 **Packages** (`config/packages/*.yaml` → `/config/packages/` on the Pi, loaded by
 `homeassistant: packages: !include_dir_named packages`): copy the file over host
@@ -72,11 +74,18 @@ Supervisor's `os/datadisk/move`. The SD card's old copy is left as
 `hassos-data-old`. Swap sits around 300–550 MB. If the enclosure's power comes
 on after the Pi boots, the adapter shows a 0-byte "VirtualDisk" and HA won't
 start; replug it with the enclosure powered. Keep add-ons and integrations lean: Matter Server
-is stopped on purpose (no devices), and the recorder uses `commit_interval: 30`,
+was removed (no devices), and the recorder uses `commit_interval: 30`,
 `purge_keep_days: 7`. **Run `sync` after writing files**: a power cut once
 truncated a freshly installed HACS integration to empty files. The `rpi_power`
 "under-voltage" repair is a sticky since-boot flag. One event at power-on is
 normal; repeated events while running mean a power problem.
+
+## Security
+
+`docs/security.md` lists what is exposed and how. IPv6 is disabled on the Pi
+on purpose (HA had a public address with no host firewall), the `wallphone`
+user is local-only, and only Cloudflared auto-updates. Leave these alone
+unless that doc says otherwise.
 
 ## Backups
 
@@ -104,6 +113,23 @@ Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
 - `sensor.home_battery`: the Alpha ESS charge level, with a templated name
   ("Charging 1.9 kW", "Discharging 640 W", "Battery idle") and icon, so the
   Battery sensor card on both Home views shows the rate too.
+- `sensor.car_charger`: the Evnex charger's state in words ("Charging 7.2 kW",
+  "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
+  The Car section's *Charge now* switch is the one charger control on it.
+
+Its **Kids** view has Jodie's Yoto player, one-tap story, podcast and radio
+tiles (`media_player.play_media` with `yoto://card/<id>`, IDs from the
+player's media browser), and dropdowns for multi-card Yoto Club series
+(BrainBots, Dinosaurs…): template selects in `config/packages/yoto.yaml`
+whose state stays unknown, so picking a card always plays it. Its **Music** view plays Spotify on the Sonos speakers (TV
+Room Beam = living room, Dining Room, Hallway). `config/packages/music.yaml`
+holds one `input_boolean.music_*` per room. Its automation groups the chosen
+speakers (debounced 1 s), and `sensor.music_speaker` names the group's
+coordinator, which picks the player card that shows. Spotify music is chosen
+from the player's media browser (Sonos → pimooss), or from the *Morning jazz*
+and *Morning piano* shortcuts (`script.music_play_playlist`: Spotify URIs that
+Sonos plays itself, in the dining room and hallway). The switches don't follow
+grouping done in the Sonos app or in HA's own group dialog.
 
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
@@ -121,6 +147,16 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.
+- **Yoto** (core integration, cloud, found by DHCP): one player, "Jodie", in
+  Jodie's room (`media_player.jodie`, battery, headphones, and day/night-mode
+  volume, colour and brightness controls). **Spotify** (core, OAuth): the
+  Premium account `pimooss` as `media_player.spotify_pimooss`. Added in
+  October 2026.
+- **Robot vacuum:** Roborock gen 1 (`rockrobo.vacuum.v1`) on Xiaomi Home,
+  `vacuum.rockrobo_sg_64457686_v1`. Its MIoT spec has no fault code, only
+  status "Error" (state `error`). `config/packages/vacuum.yaml` resumes it once
+  per run after a mid-clean error (usually a false "main brush blocked") and
+  notifies `mobile_app_plop` if it stops again.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Tapo cameras:** two C420 battery cameras behind H200 hubs (`.57` house,
