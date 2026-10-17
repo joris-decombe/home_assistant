@@ -146,6 +146,11 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   volume, colour and brightness controls). **Spotify** (core, OAuth): the
   Premium account `pimooss` as `media_player.spotify_pimooss`. Added in
   October 2026.
+- **Robot vacuum:** Roborock gen 1 (`rockrobo.vacuum.v1`) on Xiaomi Home,
+  `vacuum.rockrobo_sg_64457686_v1`. Its MIoT spec has no fault code, only
+  status "Error" (state `error`). `config/packages/vacuum.yaml` resumes it once
+  per run after a mid-clean error (usually a false "main brush blocked") and
+  notifies `mobile_app_plop` if it stops again.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind

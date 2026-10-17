@@ -1,0 +1,77 @@
+# The robot vacuum (Roborock gen 1, rockrobo.vacuum.v1, via Xiaomi Home) often
+# stops once mid-run with a false "main brush blocked" error, then cleans fine
+# when resumed. The automation below resumes it once per run; a second error
+# in the same run, or a retry that doesn't get it moving, goes to the phone.
+# The MIoT spec has no fault code, only status "Error", so any error gets the
+# one retry, not just the brush.
+# Copy to /config/packages/ and reload input booleans and automations.
+
+input_boolean:
+  # On once this run's retry is used; off again when the vacuum docks.
+  vacuum_error_retried:
+    name: Vacuum error retried
+    icon: mdi:robot-vacuum-alert
+
+automation:
+  - id: vacuum_error_retry
+    alias: Vacuum error retry
+    description: Resumes the vacuum once per run after an error.
+    mode: single
+    triggers:
+      # 20 s lets the error settle (and the robot finish its announcement).
+      - trigger: state
+        entity_id: vacuum.rockrobo_sg_64457686_v1
+        to: error
+        for: 20
+    # Only mid-clean errors (or ones seen through a dropped connection), not
+    # e.g. being picked up while idle or on the way back to the dock.
+    conditions: "{{ trigger.from_state.state in ['cleaning', 'unavailable', 'unknown'] }}"
+    actions:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.vacuum_error_retried
+                state: "off"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.vacuum_error_retried
+              - action: vacuum.start
+                target:
+                  entity_id: vacuum.rockrobo_sg_64457686_v1
+              - wait_template: "{{ is_state('vacuum.rockrobo_sg_64457686_v1', 'cleaning') }}"
+                timeout: 120
+              - if: "{{ not wait.completed }}"
+                then:
+                  - action: notify.mobile_app_plop
+                    data:
+                      title: Vacuum stuck
+                      message: >-
+                        It stopped with an error and didn't restart on its own
+                        ({{ states('vacuum.rockrobo_sg_64457686_v1') }}).
+          # Already retried this run. Skip an error that only came back from
+          # unavailable (the cloud connection drops often): it's the same stop.
+          - conditions: "{{ trigger.from_state.state not in ['unavailable', 'unknown'] }}"
+            sequence:
+              - action: notify.mobile_app_plop
+                data:
+                  title: Vacuum stuck again
+                  message: It stopped with an error a second time this run. It needs a hand.
+
+  - id: vacuum_error_retry_reset
+    alias: Vacuum error retry reset
+    description: Re-arms the error retry when the vacuum is back on the dock.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: vacuum.rockrobo_sg_64457686_v1
+        to: docked
+        for: 60
+    conditions:
+      - condition: state
+        entity_id: input_boolean.vacuum_error_retried
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.vacuum_error_retried
