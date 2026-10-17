@@ -25,7 +25,7 @@ automation:
         for: 20
     # Only mid-clean errors (or ones seen through a dropped connection), not
     # e.g. being picked up while idle or on the way back to the dock.
-    conditions: "{{ trigger.from_state.state in ['cleaning', 'unavailable', 'unknown'] }}"
+    conditions: "{{ (trigger.from_state.state if trigger.from_state else 'unknown') in ['cleaning', 'unavailable', 'unknown'] }}"
     actions:
       - choose:
           - conditions:
@@ -51,7 +51,7 @@ automation:
                         ({{ states('vacuum.rockrobo_sg_64457686_v1') }}).
           # Already retried this run. Skip an error that only came back from
           # unavailable (the cloud connection drops often): it's the same stop.
-          - conditions: "{{ trigger.from_state.state not in ['unavailable', 'unknown'] }}"
+          - conditions: "{{ (trigger.from_state.state if trigger.from_state else 'unknown') not in ['unavailable', 'unknown'] }}"
             sequence:
               - action: notify.mobile_app_plop
                 data:
