@@ -1,0 +1,93 @@
+diff --git a/README.md b/README.md
+index 0668cbe..3173a26 100644
+--- a/README.md
++++ b/README.md
+@@ -104,7 +104,7 @@ jpeg = await getSnapshot(tapo)      # bytes (640x360 on a C510W, about 0.2 s), o
+ 
+ You can tune the download behavior with the following `Downloader` parameters:
+ 
+-- `output`: `mp4` (default, remuxed with ffmpeg) or `ts` to keep the MPEG-TS exactly as the camera sends it, no ffmpeg involved for the file itself. VLC and most players read it directly, audio included.
++- `output`: `mp4` (default, remuxed with ffmpeg) or `ts` to keep the MPEG-TS exactly as the camera sends it, no ffmpeg involved for the file itself. VLC and most players read the video directly. The G.711 audio is in Tapo's own stream type, which ffmpeg does not read, so it is also saved next to the clip as a `.au` file (`clip.ts` → `clip.au`), e.g. for `ffmpeg -i clip.ts -i clip.au -map 0:v -map 1:a -c:v copy -c:a aac clip.mp4`.
+ - `method`: `download` (default) or `playback`, see above.
+ - `window_size`: Affects throughput and stability. Higher values usually download faster but can cause some cameras to stop responding. Common values are `50` (stable) or `200` (default).
+ - `progressInterval`: Minimum time in seconds between progress updates (default `1.0`). Increasing this value reduces CPU overhead because the library no longer runs an `ffprobe` subprocess on every chunk just to report progress. Use `progressInterval=0` to restore the previous per-chunk behavior.
+diff --git a/pytapo/media_stream/convert.py b/pytapo/media_stream/convert.py
+index 322533b..2e78e93 100644
+--- a/pytapo/media_stream/convert.py
++++ b/pytapo/media_stream/convert.py
+@@ -3,6 +3,7 @@ import io
+ import subprocess
+ import shutil
+ import os
++import struct
+ import datetime
+ import tempfile
+ import time
+@@ -54,9 +55,16 @@ class Convert:
+     # cuts and saves the video
+     async def save(self, fileLocation, fileLength, method="ffmpeg"):
+         if method == "raw":
+-            # the MPEG-TS exactly as the camera sent it (H.264 + G.711 audio), no ffmpeg
++            # the MPEG-TS exactly as the camera sent it, no ffmpeg
+             async with aiofiles.open(fileLocation, "wb") as file:
+                 await file.write(self.writer.getvalue())
++            # Its G.711 audio uses Tapo's own stream types (0x90/0x91), which
++            # ffmpeg does not read, so also save the audio as a Sun .au file next
++            # to it: ffmpeg reads that format, rate included, as is.
++            audio = self.audioWriter.getvalue()
++            if audio:
++                async with aiofiles.open(self.audioFileName(fileLocation), "wb") as file:
++                    await file.write(self._au_header(len(audio)) + audio)
+             return
+         if method == "ffmpeg":
+             tempVideoFileLocation = fileLocation + ".ts"
+@@ -84,6 +92,19 @@ class Convert:
+         else:
+             raise Exception("Method not supported")
+ 
++    @staticmethod
++    def audioFileName(fileLocation):
++        """Where a raw save puts the audio: clip.ts -> clip.au"""
++        return os.path.splitext(fileLocation)[0] + ".au"
++
++    def _au_header(self, size):
++        # big-endian: magic, data offset, data size, encoding (1 = u-law,
++        # 27 = A-law), sample rate, channels
++        encoding = 1 if self.audio_payload_type == PayloadType.PCMU else 27
++        return struct.pack(
++            ">4s5I", b".snd", 24, size, encoding, int(self.audio_sample_rate), 1
++        )
++
+     # calculates ideal refresh interval for a real time estimate of downloaded data
+     def getRefreshIntervalForLengthEstimate(self):
+         if self.addedChunks < 100:
+diff --git a/test_pytapo.py b/test_pytapo.py
+index c37c7d2..d9c8e52 100644
+--- a/test_pytapo.py
++++ b/test_pytapo.py
+@@ -867,6 +867,25 @@ def test_convert_save_raw(tmp_path):
+     c.write(b"\x47" * 376, b"")
+     asyncio.run(c.save(str(tmp_path / "clip.ts"), 1, "raw"))
+     assert (tmp_path / "clip.ts").read_bytes() == b"\x47" * 376
++    assert not (tmp_path / "clip.au").exists()  # no audio, no audio file
++
++
++def test_convert_save_raw_keeps_audio(tmp_path):
++    import asyncio
++    import struct
++    from rtp import PayloadType
++    from pytapo.media_stream.convert import Convert
++
++    c = Convert()
++    c.write(b"\x47" * 188, b"\xd5" * 160, PayloadType.PCMA, 8000)
++    c.write(b"\x47" * 188, b"\xd5" * 160)
++    asyncio.run(c.save(str(tmp_path / "clip.ts"), 1, "raw"))
++    assert (tmp_path / "clip.ts").read_bytes() == b"\x47" * 376
++    au = (tmp_path / "clip.au").read_bytes()
++    assert struct.unpack(">4s5I", au[:24]) == (b".snd", 24, 320, 27, 8000, 1)
++    assert au[24:] == b"\xd5" * 320
++
++
+ def test_recording_snapshot_flow():
+     import asyncio
+     from pytapo.media_stream.snapshot import getRecordingSnapshot, getRecordingSnapshots
