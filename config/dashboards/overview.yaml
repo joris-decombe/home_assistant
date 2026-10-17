@@ -859,8 +859,6 @@ views:
         name: Battery
       - entity: light.camera_front_door_floodlight_timed
         name: Floodlight
-      - entity: siren.camera_front_door_siren
-        name: Siren
       - entity: switch.camera_front_door_privacy
         name: Privacy mode
       - type: section
@@ -910,8 +908,6 @@ views:
         name: Battery
       - entity: light.camera_garage_floodlight_timed
         name: Floodlight
-      - entity: siren.camera_garage_siren
-        name: Siren
       - entity: switch.camera_garage_privacy
         name: Privacy mode
       - type: section
@@ -933,19 +929,6 @@ views:
       entity_id:
       - event.camera_front_door_detection
       - event.camera_garage_detection
-  - type: entities
-    title: Hubs
-    icon: mdi:alarm-light
-    show_header_toggle: false
-    entities:
-    - entity: siren.tapo_hub_maison_siren
-      name: House siren
-    - entity: select.tapo_hub_maison_siren_type
-      name: House siren sound
-    - entity: siren.tapo_hub_garage_siren
-      name: Garage siren
-    - entity: select.tapo_hub_garage_siren_type
-      name: Garage siren sound
 - title: Plugs
   path: plugs
   icon: mdi:power-socket
