@@ -58,6 +58,7 @@ views:
           parentHeightOffset: 0
         legend:
           show: false
+        # Units above each axis; tick labels are plain numbers.
         title:
           text: km/h
           align: left
@@ -95,36 +96,21 @@ views:
             style:
               colors: var(--secondary-text-color)
         fill:
-          type:
-          - gradient
-          - solid
-          - solid
-          - solid
-          - solid
-          - solid
-          - solid
+          type: [gradient, solid, solid, solid, solid, solid, solid, solid, solid, solid]
           gradient:
             shadeIntensity: 0
             opacityFrom: 0.35
             opacityTo: 0.02
-            stops:
-            - 0
-            - 100
+            stops: [0, 100]
         dataLabels:
-          enabledOnSeries:
-          - 0
-          - 3
+          enabledOnSeries: [3, 4]
           background:
             enabled: false
           offsetY: -8
           style:
             fontSize: 12px
             fontWeight: 600
-            colors:
-            - '#1565c0'
-            - '#000'
-            - '#000'
-            - '#000'
+            colors: ['#000', '#000', '#000', '#000', '#1565c0']
           formatter: |
             EVAL:function (val, opts) {
               const i = opts.dataPointIndex;
@@ -138,39 +124,39 @@ views:
                 'partlycloudy': '⛅', 'pouring': '☔', 'rainy': '🌧️', 'snowy': '❄️',
                 'snowy-rainy': '🌨️', 'sunny': '☀️', 'windy': '🌬️', 'windy-variant': '🌬️',
               }[f.condition] || '';
+              if (opts.seriesIndex !== 4) return '';
               const s = Math.floor((f.wind_bearing + 22.5) / 45) % 8;
               return ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][s] + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][s];
             }
+      # No min/max here: the hidden Scale series below set each axis's
+      # range to four round steps (the ticks share the grid lines),
+      # keeping the top ~30% clear for the icon and direction rows.
       yaxis:
-      - id: wind
-        min: 0
-        max: ~100
-        apex_config:
-          tickAmount: 5
-          labels:
-            style:
-              colors: '#1e88e5'
-            formatter: |
-              EVAL:function (v) { return Math.round(v); }
-      - id: temp
-        opposite: true
-        min: ~0
-        max: ~25
-        apex_config:
-          tickAmount: 5
-          labels:
-            style:
-              colors: '#fb8c00'
-            formatter: |
-              EVAL:function (v) { return Math.round(v); }
-      - id: rain
-        show: false
-        min: 0
-        max: ~4
-      - id: sky
-        show: false
-        min: 0
-        max: 1
+        - id: wind
+          apex_config:
+            tickAmount: 4
+            labels:
+              style:
+                colors: '#1e88e5'
+              formatter: |
+                EVAL:function (v) { return Math.round(v); }
+        - id: temp
+          opposite: true
+          apex_config:
+            tickAmount: 4
+            labels:
+              style:
+                colors: '#fb8c00'
+              formatter: |
+                EVAL:function (v) { return Math.round(v); }
+        - id: rain
+          show: false
+          min: 0
+          max: ~4
+        - id: sky
+          show: false
+          min: 0
+          max: 1
       series:
       - entity: sensor.hourly_forecast
         name: Wind
@@ -180,8 +166,7 @@ views:
         curve: smooth
         stroke_width: 2.5
         unit: ' km/h'
-        show:
-          datalabels: true
+        extend_to: false
         data_generator: |
           return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
       - entity: sensor.hourly_forecast
@@ -192,6 +177,7 @@ views:
         curve: smooth
         stroke_width: 2
         unit: ' °C'
+        extend_to: false
         data_generator: |
           return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.temperature]);
       - entity: sensor.hourly_forecast
@@ -203,6 +189,7 @@ views:
         opacity: 0.35
         stroke_width: 0
         unit: ' mm'
+        extend_to: false
         data_generator: |
           return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.precipitation]);
       - entity: sensor.hourly_forecast
@@ -213,8 +200,21 @@ views:
         stroke_width: 0
         show:
           datalabels: true
+        extend_to: false
         data_generator: |
           return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), 0.94]);
+      - entity: sensor.hourly_forecast
+        name: Direction
+        yaxis_id: sky
+        type: line
+        color: transparent
+        stroke_width: 0
+        show:
+          datalabels: true
+        extend_to: false
+        data_generator: |
+          return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), 0.8]);
+      # Observed so far (dashed), from the weather entity's history.
       - entity: weather.forecast_home
         attribute: wind_speed
         name: Wind so far
@@ -235,6 +235,7 @@ views:
         stroke_width: 2
         stroke_dash: 4
         extend_to: now
+      # Grey band from the chart's start to now.
       - entity: sensor.hourly_forecast
         name: Past
         yaxis_id: sky
@@ -246,6 +247,36 @@ views:
         extend_to: false
         data_generator: |
           return [[start.getTime(), 1], [new Date().getTime(), 1]];
+      # Invisible: pins the wind axis to 0..4 steps of 5, 10, 15 km/h…
+      # and the temperature axis to 4 steps of 1, 2, 3, 5 or 10 °C, with
+      # the forecast (and the current reading) in the lower ~70%.
+      - entity: sensor.hourly_forecast
+        name: Wind scale
+        yaxis_id: wind
+        type: line
+        color: transparent
+        stroke_width: 0
+        extend_to: false
+        data_generator: |
+          const fc = entity.attributes.forecast.slice(0, 13);
+          const v = Math.max(...fc.map(f => f.wind_speed), hass.states['weather.forecast_home'].attributes.wind_speed);
+          const t = new Date(fc[0].datetime).getTime();
+          return [[t, 0], [t, 4 * Math.max(5, Math.ceil(v / 2.8 / 5) * 5)]];
+      - entity: sensor.hourly_forecast
+        name: Temperature scale
+        yaxis_id: temp
+        type: line
+        color: transparent
+        stroke_width: 0
+        extend_to: false
+        data_generator: |
+          const fc = entity.attributes.forecast.slice(0, 13);
+          const temps = fc.map(f => f.temperature).concat(hass.states['weather.forecast_home'].attributes.temperature);
+          const lo = Math.min(...temps) - 1, hi = Math.max(...temps) + 0.5;
+          const s = [1, 2, 3, 5, 10].find(s => Math.floor(lo / s) * s + 2.8 * s >= hi) || 20;
+          const m = Math.floor(lo / s) * s;
+          const t = new Date(fc[0].datetime).getTime();
+          return [[t, m], [t, m + 4 * s]];
   - type: grid
     cards:
     - type: heading
