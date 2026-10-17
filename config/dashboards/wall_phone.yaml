@@ -594,19 +594,7 @@ views:
             tap_action:
               action: toggle
             grid_options:
-              columns: 4
-          - &siren
-            type: tile
-            entity: siren.camera_front_door_siren
-            name: Siren
-            icon: mdi:alarm-light
-            color: red
-            tap_action:
-              action: toggle
-              confirmation:
-                text: Sound the front door siren?
-            grid_options:
-              columns: 4
+              columns: 6
           # The camera's clips in the Media panel (/media/tapo, 7 days).
           - &clips
             type: tile
@@ -619,7 +607,7 @@ views:
               action: navigate
               navigation_path: /media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Ftapo%2FCamera%20Front%20Door
             grid_options:
-              columns: 4
+              columns: 6
 
       - type: grid
         cards:
@@ -694,12 +682,6 @@ views:
               {%- endif %}
           - <<: *floodlight
             entity: light.camera_garage_floodlight_timed
-          - <<: *siren
-            entity: siren.camera_garage_siren
-            tap_action:
-              action: toggle
-              confirmation:
-                text: Sound the garage siren?
           - <<: *clips
             entity: image.camera_garage_last_event
             tap_action:

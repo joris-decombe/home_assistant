@@ -19,7 +19,7 @@ Everything runs on the Pi, inside Home Assistant:
 | Live video | **Tapo: Cameras Control** (HACS, `tapo_control`) "direct streams" over port 8800 |
 | Motion / person / vehicle events | **tapo_events** (this repo), polling the hub's event timeline |
 | Recordings | **tapo_events**, copying each detection clip from the hub to `/media/tapo` |
-| Controls (siren, floodlight, detection, privacy, LED) | Tapo Control |
+| Controls (floodlight, detection, privacy, LED; the sirens are left off the dashboards) | Tapo Control |
 
 The core **TP-Link** integration entries for the two hubs are *disabled*
 (not deleted): Tapo Control covers the same controls, and both polling a hub
