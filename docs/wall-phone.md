@@ -10,7 +10,9 @@ Jodie's Yoto player, one-tap stories, podcasts and radio (Tintin, Yoto Daily…)
 and dropdowns for Yoto Club series (BrainBots, Dinosaurs, Solar System…). To
 choose anything else, tap a player, then *Browse media*. Their helpers are in
 [`config/packages/music.yaml`](../config/packages/music.yaml) and
-[`config/packages/yoto.yaml`](../config/packages/yoto.yaml).
+[`config/packages/yoto.yaml`](../config/packages/yoto.yaml). The **Cameras**
+tab shows each Tapo camera's latest clip, with live view on tap (see
+[tapo-cameras.md](tapo-cameras.md)).
 
 Push changes to the dashboard with:
 
@@ -82,6 +84,7 @@ The dashboard shows only what HA can control. As of 2026-10-15:
 | EV charger (Evnex) | In HA | **Evnex** (HACS, cloud login). Its lifetime meter and metered power are the Energy dashboard's "EV charger" device (replacing Alpha ESS's unused EV counter), shown on the Power view. OCPP was installed but never used, and is removed. |
 | Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.68.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. Living room and Dining room also report lifetime energy (0.1 kWh steps, no live watts; Hall reports neither): they're in the Energy dashboard, and daily `utility_meter` helpers (created in the UI) feed `sensor.heat_pumps_today`, and `derivative` helpers (1 h window) give an approximate power for the Power view's flow chart. |
 | Xiaomi lights (Mi Home) | In HA | **Xiaomi Home** (Xiaomi's official integration, HACS) on the **Singapore** server: Mi Home's New Zealand region lives there. Ceiling lights (group), both bedside lamps, fan, vacuum, night lights and Bluetooth sensors. An older China-server entry only holds stale copies. |
+| Tapo cameras (C420 + H200 hubs) | In HA | **Tapo Control** (HACS) for live view and controls, **tapo_events** (this repo) for events and clips: the **Cameras** view. See [tapo-cameras.md](tapo-cameras.md). |
 | Matter lights | Not in HA | Matter has no devices paired on this HA (only an old, stale Tapo plug). Add each light with the HA Companion app → Settings → Devices → *Add Matter device*, or share it from its current app with a pairing code. Wi-Fi Matter devices work as is; Thread ones need a border router. |
 
 The wind chart uses the **ApexCharts card** (HACS, frontend only).
