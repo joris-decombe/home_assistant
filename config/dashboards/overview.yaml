@@ -282,7 +282,7 @@ views:
       name: Solar
       icon: mdi:solar-power-variant
       graph: line
-      hours_to_show: 12
+      hours_to_show: 6
       detail: 2
       grid_options: &id002
         columns: 6
@@ -292,13 +292,13 @@ views:
       name: Using
       icon: mdi:home-lightning-bolt
       graph: line
-      hours_to_show: 12
+      hours_to_show: 6
       detail: 2
       grid_options: *id002
     - type: sensor
       entity: sensor.home_battery
       graph: line
-      hours_to_show: 12
+      hours_to_show: 6
       detail: 2
       grid_options: *id002
     - type: sensor
@@ -306,7 +306,7 @@ views:
       name: Grid
       icon: mdi:transmission-tower
       graph: line
-      hours_to_show: 12
+      hours_to_show: 6
       detail: 2
       grid_options: *id002
   - type: grid

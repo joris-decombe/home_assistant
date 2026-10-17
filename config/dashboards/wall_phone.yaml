@@ -282,7 +282,7 @@ views:
                   - condition: state
                     entity: binary_sensor.garage_joris_home_charger_charging
                     state: "on"
-          # Big value with the last 12 h drawn underneath (6 points an hour;
+          # Big value with the last 6 h drawn underneath (6 points an hour;
           # watts, as the entities report them; grid is negative when exporting).
           - &power
             type: sensor
@@ -290,7 +290,7 @@ views:
             name: Solar
             icon: mdi:solar-power-variant
             graph: line
-            hours_to_show: 12
+            hours_to_show: 6
             detail: 2
             grid_options:
               columns: 6
