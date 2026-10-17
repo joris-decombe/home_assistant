@@ -23,7 +23,7 @@ uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboar
 (`HASS_TOKEN` must be set. Always pass `wall-phone`: without it the script
 overwrites the main Overview dashboard.)
 
-The wind strip reads `sensor.hourly_forecast` and the Car card
+The wind strip (12 h) and the 24 h chart in Forecast read `sensor.hourly_forecast`, and the Car card
 `sensor.car_charger` (Evnex's connector status in plain words), both defined in
 [`config/packages/wall_phone.yaml`](../config/packages/wall_phone.yaml). On the
 Pi it lives in `/config/packages/`, loaded by `homeassistant: packages:

@@ -29,7 +29,7 @@ views:
         {%- set w = states.weather.forecast_home.attributes %}
         {%- set i0 = sector(w.wind_bearing) | int %}
         {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
-        {%- for f in fc %}
+        {%- for f in fc[:12] %}
         {%- set d = (sector(f.wind_bearing) | int - i0) % 8 %}
         {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
         {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
@@ -41,10 +41,10 @@ views:
         {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
         {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
     - type: custom:apexcharts-card
-      graph_span: 30h
+      graph_span: 15h
       span:
         start: hour
-        offset: -6h
+        offset: -3h
       now:
         show: true
         color: '#9e9e9e'
@@ -128,7 +128,7 @@ views:
           formatter: |
             EVAL:function (val, opts) {
               const i = opts.dataPointIndex;
-              if (i % 3 !== 0) return '';
+              if (i % 2 !== 0) return '';
               const hass = document.querySelector('home-assistant').hass;
               const f = hass.states['sensor.hourly_forecast'].attributes.forecast[i];
               if (!f) return '';
@@ -183,7 +183,7 @@ views:
         show:
           datalabels: true
         data_generator: |
-          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
+          return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.wind_speed]);
       - entity: sensor.hourly_forecast
         name: Temperature
         yaxis_id: temp
@@ -193,7 +193,7 @@ views:
         stroke_width: 2
         unit: ' °C'
         data_generator: |
-          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.temperature]);
+          return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.temperature]);
       - entity: sensor.hourly_forecast
         name: Rain
         yaxis_id: rain
@@ -204,7 +204,7 @@ views:
         stroke_width: 0
         unit: ' mm'
         data_generator: |
-          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), f.precipitation]);
+          return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), f.precipitation]);
       - entity: sensor.hourly_forecast
         name: Sky
         yaxis_id: sky
@@ -214,7 +214,7 @@ views:
         show:
           datalabels: true
         data_generator: |
-          return entity.attributes.forecast.map(f => [new Date(f.datetime).getTime(), 0.94]);
+          return entity.attributes.forecast.slice(0, 13).map(f => [new Date(f.datetime).getTime(), 0.94]);
       - entity: weather.forecast_home
         attribute: wind_speed
         name: Wind so far
