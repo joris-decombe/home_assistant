@@ -37,8 +37,9 @@ Assistant" all **off**. They are ONVIF/RTSP features the hubs don't have.
 
 - Live view: `camera.camera_*_sd_stream_direct` (1280×720, ~13 fps). The Pi 3
   transcodes it to MJPEG with ffmpeg, about one core while someone watches. The
-  HD entities (2560×1440) work but are too heavy for the Pi; use SD on
-  dashboards. Opening a stream wakes the camera, which costs battery, so the
+  HD entities (2560×1440) work but are too heavy for the Pi, and their
+  background still-image refresh took over 10 s every few minutes, so both
+  `camera.camera_*_hd_stream_direct` are disabled (October 2026). Opening a stream wakes the camera, which costs battery, so the
   dashboards only start it on tap.
 - Its own media sync and "Tapo: Recordings" media browser **don't work** with
   H200 hubs. They start with `searchDateWithVideo`, which the H200 never
