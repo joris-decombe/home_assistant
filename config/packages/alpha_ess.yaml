@@ -1,0 +1,36 @@
+# The Alpha ESS integration (HACS, v0.8.5) can get stuck after HA starts while
+# the Alpha ESS cloud is down: its library swallows the error, so the entry
+# loads with no inverters, creates no entities and never polls again. All its
+# entities then stay unavailable until the entry is reloaded. Fixed upstream in
+# the 0.9.0 betas (library 0.0.21 raises, setup retries); this watchdog covers
+# it until then, and any other way the entry gets stuck.
+# Copy to /config/packages/ and reload automations.
+
+automation:
+  - id: alpha_ess_watchdog
+    alias: Alpha ESS watchdog
+    description: Reloads Alpha ESS when its battery charge has been unavailable for 15 minutes.
+    mode: single
+    # A time pattern rather than a state trigger: after a restart the sensor
+    # starts out unavailable, with no state change to trigger on.
+    triggers:
+      - trigger: time_pattern
+        minutes: /5
+    conditions:
+      - condition: state
+        entity_id: sensor.alphaess_instantaneous_battery_soc
+        state:
+          - unavailable
+          - unknown
+        for:
+          minutes: 15
+      # At most one reload an hour, so a long cloud outage doesn't mean a
+      # reload every 5 minutes.
+      - condition: template
+        value_template: >-
+          {{ this.attributes.last_triggered is none
+             or now() - this.attributes.last_triggered > timedelta(hours=1) }}
+    actions:
+      - action: homeassistant.reload_config_entry
+        target:
+          entity_id: sensor.alphaess_instantaneous_battery_soc

@@ -157,6 +157,12 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   status "Error" (state `error`). `config/packages/vacuum.yaml` resumes it once
   per run after a mid-clean error (usually a false "main brush blocked") and
   notifies `mobile_app_plop` if it stops again.
+- **Alpha ESS** (HACS v0.8.5, cloud) gets stuck if its API is down when HA
+  starts: it loads with no inverters and never polls again.
+  `config/packages/alpha_ess.yaml` reloads the entry when the battery charge
+  sensor has been unavailable for 15 minutes (at most hourly). Upstream fixes
+  this in 0.9.0; wait for the stable release, as the betas change how charge
+  schedules are written.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Tapo cameras:** two C420 battery cameras behind H200 hubs (`.57` house,
