@@ -149,6 +149,13 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   `config/packages/jodie_heater.yaml` turns it off at 07:00 and, if it's on,
   its display off at 20:30. It sits with the
   heat pumps on all three dashboards.
+- **Earthquakes:** GeoNet NZ Quakes (core, set up in the UI: 300 km, MMI 3+,
+  the last 7 days) makes one `geo_location` entity per quake, for the
+  **Quakes** tab on all three dashboards. `config/packages/earthquakes.yaml`
+  polls GeoNet's measured intensity every minute: `sensor.wellington_shaking`
+  is the second-highest MMI among the ~36 strong-motion sensors within 15 km
+  in the last hour, and `binary_sensor.wellington_earthquake` (MMI 3+) shows
+  an alert card at the top of each Home view.
 - **Xiaomi Home** (official, HACS) on the **Singapore** server: Mi Home's New
   Zealand region lives there. The China server only held stale devices.
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and

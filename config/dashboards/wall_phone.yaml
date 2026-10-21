@@ -21,6 +21,27 @@ views:
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
       - type: grid
         cards:
+          # Earthquake alert: only while GeoNet's sensors measure shaking in
+          # Wellington (binary_sensor.wellington_earthquake, MMI 3+ in the last hour;
+          # config/packages/earthquakes.yaml), with the latest located quake.
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            visibility:
+              - condition: state
+                entity: binary_sensor.wellington_earthquake
+                state: "on"
+            content: |
+              {%- set mmi = states('sensor.wellington_shaking') | int(0) %}
+              {%- set words = {3: 'weak', 4: 'light', 5: 'moderate', 6: 'strong', 7: 'severe'} %}
+              {%- set q = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | first %}
+              {%- set recent = q is defined and q and now() - (q.attributes.time | as_datetime) < timedelta(hours=1) %}
+              <ha-alert alert-type="warning" title="Earthquake shaking in Wellington">
+              Measured MMI {{ mmi }} ({{ words.get(mmi, 'extreme' if mmi > 7 else 'weak') }}).
+              {%- if recent %} M{{ '%.1f' | format(q.attributes.magnitude) }}, {{ q.attributes.locality }}, {{ q.attributes.depth | round(0) | int }} km deep, {{ relative_time(q.attributes.time | as_datetime) }} ago.
+              {%- else %} GeoNet will locate it in a few minutes.{% endif %}
+              </ha-alert>
           - type: markdown
             text_only: true
             grid_options:
@@ -1493,3 +1514,50 @@ views:
             name: TV
             icon: mdi:television
             color: blue
+
+  # Quakes: GeoNet NZ Quakes (core integration, set up in the UI) lists
+  # quakes within 300 km that may have been felt (MMI 3+) in the last 7 days,
+  # one geo_location entity each, newest first. "Deleted" quakes (GeoNet's
+  # false detections) are left out. The heading badge is Wellington's
+  # measured shaking right now (config/packages/earthquakes.yaml).
+  - title: Quakes
+    path: quakes
+    icon: mdi:pulse
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Earthquakes
+            heading_style: subtitle
+            icon: mdi:pulse
+            badges:
+              - type: entity
+                entity: sensor.wellington_shaking
+                name: Wellington now (MMI)
+                icon: mdi:waveform
+                show_name: true
+                color: deep-orange
+                tap_action:
+                  action: none
+          - type: map
+            geo_location_sources:
+              - geonetnz_quakes
+            entities:
+              - zone.home
+            theme_mode: auto
+            aspect_ratio: "1:1"
+            grid_options:
+              columns: full
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set qs = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | list %}
+              {%- for q in qs[:15] %}
+              **M{{ '%.1f' | format(q.attributes.magnitude) }}** · {{ q.attributes.locality }}<br>
+              {{ relative_time(q.attributes.time | as_datetime) }} ago · {{ q.attributes.depth | round(0) | int }} km deep · {{ q.state | float(0) | round(0) | int }} km away
+              {% else %}No felt quakes within 300 km this week.
+              {%- endfor %}
