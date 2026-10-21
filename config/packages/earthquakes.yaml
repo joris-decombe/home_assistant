@@ -1,0 +1,37 @@
+# Earthquakes. The quake list and map come from the core GeoNet NZ Quakes
+# integration (set up in the UI: 300 km around home, MMI 3+, the last 7
+# days), which makes a geo_location entity per quake. This package adds
+# whether Wellington itself is shaking, for the Home views' alert card.
+# Copy to /config/packages/ and reload REST and template entities.
+
+rest:
+  # GeoNet's strong-motion sensors: the highest shaking (MMI) each one
+  # measured in the last 60 minutes. About 36 sit within 15 km of home.
+  # The state is the second-highest MMI among them, so one noisy sensor
+  # (a truck, a slammed door) can't raise the alarm on its own.
+  - resource: https://api.geonet.org.nz/intensity?type=measured
+    headers:
+      Accept: application/vnd.geo+json;version=2
+    scan_interval: 60
+    timeout: 20
+    sensor:
+      - name: Wellington shaking
+        unique_id: wellington_shaking
+        icon: mdi:waveform
+        value_template: >-
+          {%- set ns = namespace(m=[]) %}
+          {%- for f in value_json.features
+                if -41.49 <= f.geometry.coordinates[1] <= -41.19
+                and 174.60 <= f.geometry.coordinates[0] <= 174.96 %}
+            {%- set ns.m = ns.m + [f.properties.mmi | int(0)] %}
+          {%- endfor %}
+          {{ (ns.m | sort(reverse=true))[1] if ns.m | count > 1 else 0 }}
+
+template:
+  - binary_sensor:
+      # MMI 3 ("weak") is about where people indoors start to notice. It
+      # stays on for up to an hour, as long as GeoNet's window holds it.
+      - name: Wellington earthquake
+        unique_id: wellington_earthquake
+        icon: mdi:home-alert
+        state: "{{ states('sensor.wellington_shaking') | int(0) >= 3 }}"
