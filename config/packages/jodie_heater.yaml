@@ -21,3 +21,20 @@ automation:
       - action: climate.turn_off
         target:
           entity_id: climate.heater_jodie
+
+  # Its display lights up the room at night.
+  - id: jodie_heater_display_off
+    alias: Jodie's heater display off in the evening
+    description: Turns the heater's display off at 20:30 if the heater is on.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "20:30:00"
+    conditions:
+      - condition: state
+        entity_id: climate.heater_jodie
+        state: heat
+    actions:
+      - action: light.turn_off
+        target:
+          entity_id: light.heater_jodie_display
