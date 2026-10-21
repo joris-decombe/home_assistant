@@ -146,7 +146,8 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   **Tuya Local** (`make-all/tuya-local`, a HACS custom repository), local at
   `.54` (protocol 3.3). It's paired in Smart Life, whose QR sign-in fetched
   its local key; re-pairing changes the key. It reports no power or energy.
-  `config/packages/jodie_heater.yaml` turns it off at 07:00. It sits with the
+  `config/packages/jodie_heater.yaml` turns it off at 07:00 and, if it's on,
+  its display off at 20:30. It sits with the
   heat pumps on all three dashboards.
 - **Xiaomi Home** (official, HACS) on the **Singapore** server: Mi Home's New
   Zealand region lives there. The China server only held stale devices.
