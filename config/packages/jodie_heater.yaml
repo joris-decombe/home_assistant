@@ -1,0 +1,23 @@
+# Jodie's Goldair GPPH panel heater (Tuya Local, local at 192.168.68.54).
+# It used to switch itself off in the morning through a schedule in the
+# Goldair app; that went when it moved to Smart Life, so HA does it now.
+# Copy to /config/packages/ and reload automations.
+
+automation:
+  - id: jodie_heater_morning_off
+    alias: Jodie's heater off in the morning
+    description: Turns Jodie's heater off at 7:00 every day.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "07:00:00"
+    conditions:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: climate.heater_jodie
+            state: "off"
+    actions:
+      - action: climate.turn_off
+        target:
+          entity_id: climate.heater_jodie

@@ -354,12 +354,13 @@ views:
             name: Grid
             icon: mdi:transmission-tower
 
-      # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
-      # the full thermostat (modes, fan, swing).
+      # Heat pumps and Jodie's heater: icon toggles on/off, -/+ sets the
+      # target, the name opens the full thermostat (modes, fan, swing; the
+      # heater's presets and power level).
       - type: grid
         cards:
           - type: heading
-            heading: Heat pumps
+            heading: Heating
             heading_style: subtitle
             icon: mdi:home-thermometer
             badges:
@@ -398,6 +399,10 @@ views:
           - <<: *heat_pump
             entity: climate.hall
             name: Hall
+          # Goldair GPPH panel heater (Tuya Local, local at .54).
+          - <<: *heat_pump
+            entity: climate.heater_jodie
+            name: Jodie's heater
 
       # Lights, Jodie's room and the vacuum (tap for start / return to dock).
       - type: grid
