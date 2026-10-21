@@ -142,6 +142,12 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
   `.84`, Dining room `.89`. Living room and Dining room report lifetime kWh only
   (no live watts); Hall reports none. Approximate power comes from `derivative`
   helpers, and daily kWh from `utility_meter` helpers, all created in the UI.
+- **Jodie's heater:** a Goldair GPPH panel heater, `climate.heater_jodie`, on
+  **Tuya Local** (`make-all/tuya-local`, a HACS custom repository), local at
+  `.54` (protocol 3.3). It's paired in Smart Life, whose QR sign-in fetched
+  its local key; re-pairing changes the key. It reports no power or energy.
+  `config/packages/jodie_heater.yaml` turns it off at 07:00. It sits with the
+  heat pumps on all three dashboards.
 - **Xiaomi Home** (official, HACS) on the **Singapore** server: Mi Home's New
   Zealand region lives there. The China server only held stale devices.
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and

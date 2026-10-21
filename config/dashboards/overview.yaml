@@ -343,7 +343,7 @@ views:
   - type: grid
     cards:
     - type: heading
-      heading: Heat pumps
+      heading: Heating
       heading_style: subtitle
       icon: mdi:heat-pump
       badges:
@@ -412,6 +412,27 @@ views:
         - dry
         - fan_only
         - 'off'
+      - type: target-temperature
+    - type: tile
+      entity: climate.heater_jodie
+      name: Jodie's heater
+      state_content:
+      - state
+      - current_temperature
+      grid_options:
+        columns: full
+      features_position: bottom
+      features:
+      - type: climate-hvac-modes
+        hvac_modes:
+        - heat
+        - 'off'
+      - type: climate-preset-modes
+        style: icons
+        preset_modes:
+        - comfort
+        - eco
+        - away
       - type: target-temperature
   - type: grid
     cards:

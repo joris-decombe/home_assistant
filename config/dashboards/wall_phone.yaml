@@ -351,8 +351,9 @@ views:
             name: Grid
             icon: mdi:transmission-tower
 
-      # Heat pumps: icon toggles on/off, -/+ sets the target, the name opens
-      # the full thermostat (modes, fan, swing). Then lights, Jodie's room
+      # Heat pumps and Jodie's heater: icon toggles on/off, -/+ sets the
+      # target, the name opens the full thermostat (modes, fan, swing; the
+      # heater's presets and power level). Then lights, Jodie's room
       # and the vacuum (tap for start / return to dock).
       - type: grid
         cards:
@@ -396,6 +397,10 @@ views:
           - <<: *heat_pump
             entity: climate.hall
             name: Hall
+          # Goldair GPPH panel heater (Tuya Local, local at .54).
+          - <<: *heat_pump
+            entity: climate.heater_jodie
+            name: Jodie's heater
           # Lights: tap toggles, hold opens brightness / colour temperature.
           # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
           # Both ceiling lights (select.ceiling_lights and its scripts in
