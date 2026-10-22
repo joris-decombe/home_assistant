@@ -1,0 +1,123 @@
+# Charges the car from solar that would otherwise be exported. When the home
+# battery is nearly full (98%+) and there is still a surplus, it turns on the
+# Evnex charger's Charge now switch, which overrides the charger's off-peak
+# schedule. It turns it back off, handing back to that schedule, once the
+# battery has dropped to 90% or the house has been importing over 1 kW for
+# 5 minutes: at that point the battery or the grid is charging the car, not
+# the sun.
+#
+# Signs: Alpha ESS grid I/O is positive when importing, battery I/O positive
+# when discharging, so the surplus (solar minus load) is -(grid + battery).
+# Both clouds poll, so the readings lag by a minute (Alpha ESS) to ~5 (Evnex).
+#
+# It only stops charging it started itself: a Charge now turned on by hand is
+# left alone. Copy to /config/packages/ and reload automations and input
+# booleans.
+
+input_boolean:
+  car_solar_charging:
+    name: Car charging from solar
+    icon: mdi:solar-power-variant
+
+template:
+  - binary_sensor:
+      - name: Solar surplus
+        unique_id: car_solar_charging_surplus
+        default_entity_id: binary_sensor.solar_surplus
+        icon: mdi:solar-power
+        availability: >
+          {{ has_value('sensor.alphaess_instantaneous_battery_soc')
+             and has_value('sensor.alphaess_instantaneous_grid_i_o_total')
+             and has_value('sensor.alphaess_instantaneous_battery_i_o') }}
+        state: >
+          {% set surplus = -(states('sensor.alphaess_instantaneous_grid_i_o_total') | float
+                             + states('sensor.alphaess_instantaneous_battery_i_o') | float) %}
+          {{ states('sensor.alphaess_instantaneous_battery_soc') | float >= 98 and surplus > 500 }}
+
+automation:
+  - id: car_solar_charging_start
+    alias: Charge the car from solar
+    description: Turns on Charge now when the home battery is full and solar is about to be exported.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.solar_surplus
+        to: "on"
+        for:
+          minutes: 5
+      # A car plugged in while the surplus is already there.
+      - trigger: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        to: "on"
+        for:
+          minutes: 2
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.solar_surplus
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        state: "on"
+      - condition: state
+        entity_id: sensor.garage_joris_home_charger_charger_network_status
+        state: online
+      # Already charging (by hand or on its schedule): nothing to do.
+      - condition: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.garage_joris_home_charger_charging
+        state: "off"
+    actions:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.car_solar_charging
+
+  - id: car_solar_charging_stop
+    alias: Stop charging the car from solar
+    description: Turns Charge now back off when the battery or the grid starts charging the car.
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.alphaess_instantaneous_battery_soc
+        below: 90
+      - trigger: numeric_state
+        entity_id: sensor.alphaess_instantaneous_grid_i_o_total
+        above: 1000
+        for:
+          minutes: 5
+    conditions:
+      - condition: state
+        entity_id: input_boolean.car_solar_charging
+        state: "on"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.car_solar_charging
+
+  # Unplugged, or Charge now turned off some other way: the solar session is over.
+  - id: car_solar_charging_clear
+    alias: Clear car solar charging
+    description: Clears the solar-charging flag when the car is unplugged or Charge now goes off.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        to: "off"
+      - trigger: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        to: "off"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.car_solar_charging
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.car_solar_charging

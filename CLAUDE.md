@@ -161,6 +161,11 @@ browser tool, so test card changes in a local page: serve the card JS and a fake
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.
+  `config/packages/car_solar_charging.yaml` turns on the charger's *Charge
+  now* when the battery is 98%+ and solar is still in surplus
+  (`binary_sensor.solar_surplus`), and back off at 90% or 1 kW of grid import.
+  `input_boolean.car_solar_charging` marks a session it started, so it never
+  stops a Charge now turned on by hand.
 - **Yoto** (core integration, cloud, found by DHCP): one player, "Jodie", in
   Jodie's room (`media_player.jodie`, battery, headphones, and day/night-mode
   volume, colour and brightness controls). **Spotify** (core, OAuth): the
