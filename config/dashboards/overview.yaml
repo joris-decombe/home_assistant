@@ -887,6 +887,298 @@ views:
         type: simple-entity
         tap_action:
           action: none
+# Solar charging: config/packages/car_solar_charging.yaml turns on the
+# charger's Charge now when the battery is full and solar is spare, and off
+# again at the battery floor. The checklist shows which of its conditions
+# hold right now; the chart shows today, with its sessions shaded green.
+- title: Solar charging
+  path: solar-charging
+  icon: mdi:solar-power
+  type: sections
+  max_columns: 3
+  dense_section_placement: true
+  sections:
+    - type: grid
+      cards:
+        - type: heading
+          heading: Solar charging
+          heading_style: subtitle
+          icon: mdi:solar-power
+          badges:
+            - type: entity
+              entity: sensor.home_battery
+              tap_action:
+                action: none
+        - type: markdown
+          grid_options:
+            columns: full
+          content: |
+            {%- set soc = states('sensor.alphaess_instantaneous_battery_soc') | float(0) %}
+            {%- set surplus = -(states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0)
+                                + states('sensor.alphaess_instantaneous_battery_i_o') | float(0)) %}
+            {%- set floor = states('sensor.car_charging_battery_floor') | float(100) %}
+            {%- set plugged = is_state('binary_sensor.garage_joris_home_charger_plugged_in', 'on') %}
+            {%- set w = '%.1f kW' | format(surplus | abs / 1000) if surplus | abs >= 1000 else '%d W' | format(surplus | abs) %}
+            {%- macro check(ok) %}{{ '✅' if ok else '⬜' }}{% endmacro %}
+            {%- if is_state('input_boolean.car_solar_charging', 'on') %}
+            ## ☀️ Charging from solar
+            Stops when the battery drops below **{{ floor | int }}%** (it's at {{ soc | int }}%),
+            or the house imports over 1 kW for 5 minutes.
+            {%- elif is_state('switch.garage_joris_home_charger_charge_now', 'on') %}
+            ## ⚡ Charge now is on
+            Turned on by hand or by the app, so solar charging leaves it alone.
+            {%- else %}
+            ## {{ '🔌 Waiting for spare solar' if plugged else '🚗 Car not plugged in' }}
+            {{ check(soc >= 98) }} Battery at 98%+ · **{{ soc | int }}%**<br>
+            {{ check(surplus > 500) }} 500 W+ of solar to spare · **{{ w if surplus > 0 else 'none' }}**<br>
+            {{ check(floor < 95) }} Sun left to refill the battery · **down to {{ floor | int }}%**<br>
+            {{ check(plugged) }} Car plugged in
+            {%- endif %}
+        - type: tile
+          entity: sensor.car_charger
+          name: Charger
+          color: green
+          tap_action:
+            action: none
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: switch.garage_joris_home_charger_charge_now
+          name: Charge now
+          icon: mdi:lightning-bolt
+          color: green
+          tap_action:
+            action: toggle
+          grid_options:
+            columns: 6
+        - &solar_tile
+          type: tile
+          entity: sensor.solar_left_today
+          name: Solar left today
+          color: amber
+          tap_action:
+            action: none
+          grid_options:
+            columns: 6
+        - <<: *solar_tile
+          entity: sensor.car_charging_battery_floor
+          name: Battery can drop to
+          color: red
+
+    # 5:00 to 21:00. Battery and its floor on the % axis, power on the kW
+    # axis; the dashed amber line is the estimate behind Solar left today
+    # (the same curve as the package), from now to sunset.
+    - type: grid
+      cards:
+        - type: heading
+          heading: Today
+          heading_style: subtitle
+          icon: mdi:chart-line
+        - type: custom:apexcharts-card
+          graph_span: 16h
+          span:
+            start: day
+            offset: +5h
+          now:
+            show: true
+            color: '#9e9e9e'
+          header:
+            show: false
+          grid_options:
+            columns: full
+          apex_config:
+            chart:
+              height: 320
+              parentHeightOffset: 0
+            legend:
+              show: true
+              position: bottom
+              fontSize: 11px
+              itemMargin:
+                horizontal: 6
+                vertical: 0
+              labels:
+                colors: var(--secondary-text-color)
+            title:
+              text: '%'
+              align: left
+              offsetX: 4
+              style:
+                fontSize: 11px
+                fontWeight: 500
+                color: '#1e88e5'
+            subtitle:
+              text: kW
+              align: right
+              offsetX: -4
+              offsetY: 0
+              style:
+                fontSize: 11px
+                fontWeight: 500
+                color: '#ffa000'
+            tooltip:
+              enabled: false
+            grid:
+              borderColor: rgba(127, 127, 127, 0.2)
+              strokeDashArray: 3
+              padding:
+                left: 6
+                right: 14
+                top: -14
+                bottom: 0
+            xaxis:
+              axisBorder:
+                show: false
+              axisTicks:
+                show: false
+              labels:
+                format: HH:mm
+                style:
+                  colors: var(--secondary-text-color)
+          yaxis:
+            # Seven steps each, so both axes' ticks share the grid lines and
+            # their zeros line up; the % axis's negative ticks are blank,
+            # leaving room for exports below zero kW.
+            - id: pct
+              min: -40
+              max: 100
+              apex_config:
+                tickAmount: 7
+                labels:
+                  style:
+                    colors: '#1e88e5'
+                  formatter: |
+                    EVAL:function (v) { return v < 0 ? '' : Math.round(v); }
+            - id: kw
+              opposite: true
+              min: -4
+              max: 10
+              apex_config:
+                tickAmount: 7
+                labels:
+                  style:
+                    colors: '#ffa000'
+                  formatter: |
+                    EVAL:function (v) { return Math.round(v); }
+            - id: session
+              show: false
+              min: 0
+              max: 1
+          series:
+            - entity: input_boolean.car_solar_charging
+              name: Solar session
+              yaxis_id: session
+              type: area
+              curve: stepline
+              color: '#43a047'
+              opacity: 0.15
+              stroke_width: 0
+              extend_to: now
+              show:
+                in_legend: false
+              transform: "return x === 'on' ? 1 : 0;"
+            - entity: sensor.alphaess_instantaneous_generation
+              name: Solar
+              yaxis_id: kw
+              type: area
+              curve: smooth
+              color: '#ffa000'
+              opacity: 0.25
+              stroke_width: 1.5
+              extend_to: now
+              unit: ' kW'
+              transform: return x / 1000;
+              group_by: &avg10
+                func: avg
+                duration: 10min
+            - entity: sensor.garage_joris_home_charger_metered_power
+              name: Car
+              yaxis_id: kw
+              type: line
+              curve: stepline
+              color: '#43a047'
+              stroke_width: 2
+              extend_to: now
+              group_by: *avg10
+            - entity: sensor.alphaess_instantaneous_grid_i_o_total
+              name: Grid
+              yaxis_id: kw
+              type: line
+              curve: smooth
+              color: '#8e24aa'
+              stroke_width: 1.5
+              extend_to: now
+              unit: ' kW'
+              transform: return x / 1000;
+              group_by: *avg10
+            - entity: sensor.alphaess_instantaneous_battery_soc
+              name: Battery
+              yaxis_id: pct
+              type: line
+              curve: smooth
+              color: '#1e88e5'
+              stroke_width: 2.5
+              extend_to: now
+              group_by: *avg10
+            - entity: sensor.car_charging_battery_floor
+              name: Floor
+              yaxis_id: pct
+              type: line
+              curve: stepline
+              color: '#e53935'
+              stroke_width: 1.5
+              stroke_dash: 4
+              extend_to: now
+              group_by:
+                func: last
+                duration: 10min
+            - entity: sensor.solar_left_today
+              name: Estimate
+              yaxis_id: kw
+              type: line
+              curve: smooth
+              color: '#ffa000'
+              stroke_width: 1.5
+              stroke_dash: 4
+              extend_to: false
+              show:
+                in_legend: false
+              # The package's solar curve, every 15 minutes from now to sunset.
+              data_generator: |
+                const sun = hass.states['sun.sun'];
+                const fc = hass.states['sensor.hourly_forecast'];
+                if (!sun || sun.state !== 'above_horizon' || !fc) return [];
+                const factor = {sunny: 1, windy: 1, partlycloudy: 0.6, 'windy-variant': 0.6,
+                  cloudy: 0.25, fog: 0.2, rainy: 0.15, lightning: 0.15, pouring: 0.1,
+                  'lightning-rainy': 0.1, hail: 0.1, snowy: 0.1, 'snowy-rainy': 0.1};
+                const dusk = new Date(sun.attributes.next_setting).getTime();
+                let rise = new Date(sun.attributes.next_rising).getTime();
+                if (rise > dusk) rise -= 86400000;
+                const hours = fc.attributes.forecast || [];
+                const out = [];
+                for (let t = Date.now(); t <= dusk + 1; t += 900000) {
+                  const h = hours.find(f => t < new Date(f.datetime).getTime() + 3600000) || hours[0];
+                  const x = (Math.min(t, dusk) - rise) / (dusk - rise);
+                  const p = 4 * Math.pow(Math.max(Math.sin(Math.PI * x), 0), 1.5)
+                            * (h ? (factor[h.condition] ?? 0.5) : 0.5);
+                  out.push([Math.min(t, dusk), p]);
+                }
+                return out;
+
+    - type: grid
+      cards:
+        - type: heading
+          heading: On and off
+          heading_style: subtitle
+          icon: mdi:history
+        - type: logbook
+          hours_to_show: 48
+          grid_options:
+            columns: full
+          target:
+            entity_id:
+              - input_boolean.car_solar_charging
+              - switch.garage_joris_home_charger_charge_now
 - title: Security
   path: security
   icon: mdi:cctv

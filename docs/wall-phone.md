@@ -12,7 +12,12 @@ choose anything else, tap a player, then *Browse media*. Their helpers are in
 [`config/packages/music.yaml`](../config/packages/music.yaml) and
 [`config/packages/yoto.yaml`](../config/packages/yoto.yaml). The **Cameras**
 tab shows each Tapo camera's latest clip, with live view on tap (see
-[tapo-cameras.md](tapo-cameras.md)).
+[tapo-cameras.md](tapo-cameras.md)). The **Solar charging** tab follows
+[`config/packages/car_solar_charging.yaml`](../config/packages/car_solar_charging.yaml):
+a checklist of its start conditions (or, mid-session, the battery level it
+stops at), today's battery, floor, solar, car and grid with its sessions
+shaded and the solar estimate to sunset, and a log of Charge now going on and
+off. The iPad and Overview have the same tab.
 
 Push changes to the dashboard with:
 
