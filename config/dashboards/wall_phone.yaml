@@ -1560,6 +1560,11 @@ views:
               {{ check(surplus > 500) }} 500 W+ of solar to spare · **{{ w if surplus > 0 else 'none' }}**<br>
               {{ check(floor < 95) }} Sun left to refill the battery · **down to {{ floor | int }}%**<br>
               {{ check(plugged) }} Car plugged in
+              {%- if soc >= 98 and surplus > 500 and floor < 95 and plugged and is_state('binary_sensor.solar_surplus', 'on') %}
+              {%- set at = states.binary_sensor.solar_surplus.last_changed + timedelta(minutes=2) %}
+
+              ⏳ {{ 'Starts at ' ~ (at | as_local).strftime('%H:%M') ~ ', after 2 minutes of spare solar' if at > now() else 'Starting: the charger can take a few minutes to answer' }}
+              {%- endif %}
               {%- endif %}
           - type: tile
             entity: sensor.car_charger

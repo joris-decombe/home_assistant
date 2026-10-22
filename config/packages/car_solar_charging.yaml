@@ -93,22 +93,29 @@ automation:
     alias: Charge the car from solar
     description: Turns on Charge now when the home battery is full and solar is about to be exported.
     mode: single
+    # Two minutes is two Alpha ESS polls in a row. The Evnex cloud sometimes
+    # times out on Charge now (it did on 2026-10-23), which fails the run;
+    # the time pattern tries again every 5 minutes while the conditions hold.
     triggers:
       - trigger: state
         entity_id: binary_sensor.solar_surplus
         to: "on"
         for:
-          minutes: 5
+          minutes: 2
       # A car plugged in while the surplus is already there.
       - trigger: state
         entity_id: binary_sensor.garage_joris_home_charger_plugged_in
         to: "on"
         for:
-          minutes: 2
+          minutes: 1
+      - trigger: time_pattern
+        minutes: /5
     conditions:
       - condition: state
         entity_id: binary_sensor.solar_surplus
         state: "on"
+        for:
+          minutes: 2
       # Late in the day there's no sun left to refill the battery after.
       - condition: numeric_state
         entity_id: sensor.car_charging_battery_floor
