@@ -1,0 +1,191 @@
+# Charges the car from solar that would otherwise be exported. When the home
+# battery is nearly full (98%+) and there is still a surplus, it turns on the
+# Evnex charger's Charge now switch, which overrides the charger's off-peak
+# schedule. The car then draws more than the panels make, so the battery
+# covers the rest. That's fine while there's enough sun left to fill it again
+# by sunset: sensor.car_charging_battery_floor is how low it can go for that,
+# from sensor.solar_left_today. Charge now goes back off, handing back to the
+# charger's schedule, when the battery reaches that floor, when the house has
+# been importing over 1 kW for 5 minutes, or when Alpha ESS stops reporting.
+#
+# The solar estimate is a curve between sunrise and sunset, sin(πx)^1.5 with
+# a 4 kW peak, fitted to the panels' afternoons in October 2026, scaled by
+# met.no's hourly condition (sensor.hourly_forecast). The house is assumed to
+# use 1 kW until sunset; mornings come out high, but the floor bottoms out at
+# 30% then anyway.
+#
+# Signs: Alpha ESS grid I/O is positive when importing, battery I/O positive
+# when discharging, so the surplus (solar minus load) is -(grid + battery).
+# Both clouds poll, so the readings lag by a minute (Alpha ESS) to ~5 (Evnex).
+#
+# It only stops charging it started itself: a Charge now turned on by hand is
+# left alone. Copy to /config/packages/ and reload automations and input
+# booleans.
+
+input_boolean:
+  car_solar_charging:
+    name: Car charging from solar
+    icon: mdi:solar-power-variant
+
+template:
+  - binary_sensor:
+      - name: Solar surplus
+        unique_id: car_solar_charging_surplus
+        default_entity_id: binary_sensor.solar_surplus
+        icon: mdi:solar-power
+        availability: >
+          {{ has_value('sensor.alphaess_instantaneous_battery_soc')
+             and has_value('sensor.alphaess_instantaneous_grid_i_o_total')
+             and has_value('sensor.alphaess_instantaneous_battery_i_o') }}
+        state: >
+          {% set surplus = -(states('sensor.alphaess_instantaneous_grid_i_o_total') | float
+                             + states('sensor.alphaess_instantaneous_battery_i_o') | float) %}
+          {{ states('sensor.alphaess_instantaneous_battery_soc') | float >= 98 and surplus > 500 }}
+
+  - sensor:
+      - name: Solar left today
+        unique_id: car_solar_charging_solar_left
+        default_entity_id: sensor.solar_left_today
+        icon: mdi:solar-power-variant-outline
+        unit_of_measurement: kWh
+        state: >
+          {% set peak = 4.0 %}
+          {% set factor = {'sunny': 1, 'windy': 1, 'partlycloudy': 0.6, 'windy-variant': 0.6,
+                           'cloudy': 0.25, 'fog': 0.2, 'rainy': 0.15, 'lightning': 0.15,
+                           'pouring': 0.1, 'lightning-rainy': 0.1, 'hail': 0.1,
+                           'snowy': 0.1, 'snowy-rainy': 0.1} %}
+          {% set t = as_timestamp(now()) %}
+          {% set dusk = as_timestamp(state_attr('sun.sun', 'next_setting')) %}
+          {% set rise = as_timestamp(state_attr('sun.sun', 'next_rising')) %}
+          {% set rise = rise - 86400 if rise > dusk else rise %}
+          {% set ns = namespace(kwh=0) %}
+          {% if is_state('sun.sun', 'above_horizon') %}
+            {% for f in state_attr('sensor.hourly_forecast', 'forecast') or [] %}
+              {% set start = as_timestamp(f.datetime) %}
+              {# The forecast starts at the next hour: the first entry covers from now. #}
+              {% set a = t if loop.first else [start, t] | max %}
+              {% set b = [start + 3600, dusk] | min %}
+              {% if b > a %}
+                {% set x = ((a + b) / 2 - rise) / (dusk - rise) %}
+                {% set ns.kwh = ns.kwh + peak * ((pi * x) | sin) ** 1.5
+                                * factor.get(f.condition, 0.5) * (b - a) / 3600 %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.kwh | round(1) }}
+
+      - name: Car charging battery floor
+        unique_id: car_solar_charging_floor
+        default_entity_id: sensor.car_charging_battery_floor
+        icon: mdi:battery-arrow-down-outline
+        unit_of_measurement: "%"
+        availability: "{{ has_value('sensor.solar_left_today') }}"
+        state: >
+          {% set house = 1.0 %}
+          {% set hours = ([as_timestamp(state_attr('sun.sun', 'next_setting')) - as_timestamp(now()), 0] | max / 3600)
+                         if is_state('sun.sun', 'above_horizon') else 0 %}
+          {% set spare = states('sensor.solar_left_today') | float - house * hours %}
+          {% set capacity = states('sensor.alphaess_installed_capacity') | float(9.6) %}
+          {{ ([100 - spare / capacity * 100, 30] | max, 100) | min | round(0) }}
+
+automation:
+  - id: car_solar_charging_start
+    alias: Charge the car from solar
+    description: Turns on Charge now when the home battery is full and solar is about to be exported.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.solar_surplus
+        to: "on"
+        for:
+          minutes: 5
+      # A car plugged in while the surplus is already there.
+      - trigger: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        to: "on"
+        for:
+          minutes: 2
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.solar_surplus
+        state: "on"
+      # Late in the day there's no sun left to refill the battery after.
+      - condition: numeric_state
+        entity_id: sensor.car_charging_battery_floor
+        below: 95
+      - condition: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        state: "on"
+      - condition: state
+        entity_id: sensor.garage_joris_home_charger_charger_network_status
+        state: online
+      # Already charging (by hand or on its schedule): nothing to do.
+      - condition: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.garage_joris_home_charger_charging
+        state: "off"
+    actions:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.car_solar_charging
+
+  - id: car_solar_charging_stop
+    alias: Stop charging the car from solar
+    description: Turns Charge now back off at the battery floor, or when the grid starts charging the car.
+    mode: single
+    triggers:
+      # The floor rises through the afternoon, so this also fires as the sun runs out.
+      - trigger: template
+        value_template: >
+          {{ states('sensor.alphaess_instantaneous_battery_soc') | float(100)
+             < states('sensor.car_charging_battery_floor') | float(0) }}
+      - trigger: numeric_state
+        entity_id: sensor.alphaess_instantaneous_grid_i_o_total
+        above: 1000
+        for:
+          minutes: 5
+      # Its cloud can get stuck (see alpha_ess.yaml); don't charge blind.
+      - trigger: state
+        entity_id: sensor.alphaess_instantaneous_battery_soc
+        to:
+          - unavailable
+          - unknown
+        for:
+          minutes: 10
+    conditions:
+      - condition: state
+        entity_id: input_boolean.car_solar_charging
+        state: "on"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.car_solar_charging
+
+  # Unplugged, or Charge now turned off some other way: the solar session is over.
+  - id: car_solar_charging_clear
+    alias: Clear car solar charging
+    description: Clears the solar-charging flag when the car is unplugged or Charge now goes off.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.garage_joris_home_charger_plugged_in
+        to: "off"
+      - trigger: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        to: "off"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.car_solar_charging
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.car_solar_charging
