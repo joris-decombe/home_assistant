@@ -1051,6 +1051,22 @@ views:
               - condition: state
                 entity: sensor.music_speaker
                 state: media_player.hallway
+          # One volume for the whole group playing (number.music_volume moves
+          # every speaker by the same amount), then one slider per room.
+          - type: tile
+            entity: number.music_volume
+            name: All rooms
+            color: green
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            grid_options:
+              columns: full
           - &volume
             type: tile
             entity: media_player.tv_room

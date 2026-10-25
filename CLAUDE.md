@@ -136,8 +136,10 @@ sensor's `catalogue` attribute, rotated by `input_text.music_rotation` and
 played shuffled by `script.music_play_mood` (through
 `script.music_play_playlist`: Spotify URIs that Sonos plays itself) in the
 rooms switched on, else the dining room; `sensor.music_mood_1..3` show the
-playlist each plays next. The switches don't follow grouping done in the
-Sonos app or in HA's own group dialog.
+playlist each plays next. `number.music_volume` is one volume for the group
+playing (the speakers' average; setting it moves each by the same amount).
+The switches don't follow grouping done in the Sonos app or in HA's own
+group dialog.
 
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
