@@ -3,7 +3,10 @@
 # pōhutukawa-red accent, and a panorama across the top of the screen,
 # between the clock and the cards: Cook Strait with the Kaikōura ranges on the
 # horizon, the beach and rocks, harakeke (flax) in flower and toetoe on a
-# dune. By night the sea goes dark under a moon. It sits 64 px down the
+# dune. By night the sea goes dark under a moon. Now and then a pod of
+# dolphins leaps, a humpback blows and dives (or, rarely, breaches), and a
+# pukeko struts along the beach by day, a kiwi at night: short SVG
+# animations with long pauses, idle in between. It sits 64 px down the
 # page, so the horizon falls just under each view's title or the clock, and
 # scrolls away with the page; its sky and its foot fade into the page
 # colour, so the cards sit on plain sand. Bump the ?v= after redrawing it,
@@ -34,7 +37,7 @@ South Coast:
       accent-color: "#c8473a"
       primary-background-color: "#f2ede4"
       secondary-background-color: "#e7e0d3"
-      lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-day.svg?v=3"), #f2ede4'
+      lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-day.svg?v=4"), #f2ede4'
       card-background-color: "#fffdf9"
       ha-card-background: "#fffdf9"
       ha-card-box-shadow: "0 1px 2px rgba(60, 45, 20, 0.05), 0 6px 20px rgba(60, 45, 20, 0.07)"
@@ -51,7 +54,7 @@ South Coast:
       accent-color: "#ff8a6e"
       primary-background-color: "#0b1620"
       secondary-background-color: "#122230"
-      lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-night.svg?v=3"), #0b1620'
+      lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-night.svg?v=4"), #0b1620'
       card-background-color: "#13212c"
       ha-card-background: "#13212c"
       ha-card-box-shadow: "none"
