@@ -18,8 +18,10 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 - `config/dashboards/overview.yaml` is the source of truth for the main
   Overview dashboard (pushed with no `url_path`). Its Home headline and wind
   chart are copies of the wall phone's: change `wall_phone.yaml` first, then
-  copy them across. The same goes for `config/dashboards/ipad.yaml`
-  (`ipad-home`), which is the wall phone's dashboard in three columns.
+  copy them across. `config/dashboards/ipad.yaml` (`ipad-home`, the kitchen
+  iPad) has its own design (see `docs/ipad.md`), but its 12 h wind chart and
+  its Solar charging, Quakes, Cameras and Kids views are copies of the wall
+  phone's too.
 
 ## Pushing changes to the Pi
 
@@ -135,6 +137,18 @@ The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
 browser tool, so test card changes in a local page: serve the card JS and a fake
 `hass` object at 412 px. After installing a HACS card, the phone needs a reload.
+
+## Kitchen iPad
+
+An iPad 9th gen (1080×810 CSS in landscape) in the companion app's kiosk
+mode, as the local-only, non-admin `ipad` user, on `ipad-home`. Its theme is
+**South Coast** (`config/themes/south_coast.yaml`, with SVG pictures in
+`config/www/ipad/` from `scripts/coast_svg.py`); the theme's 16 px column gaps
+are what make three columns fit. `config/packages/ipad.yaml` drives brightness
+and the screensaver by phase of day through `notify.mobile_app_ipad`
+(`kiosk_*` messages, which only reach the app in the foreground), and will
+charge it from `switch.ipad_charger` between 30 and 80% once that plug
+exists. Details and the iPad's own settings: `docs/ipad.md`.
 
 ## Devices and integrations worth knowing
 
