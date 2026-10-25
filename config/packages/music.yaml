@@ -4,8 +4,20 @@
 # coordinator, which the Music view's player card follows. Spotify plays
 # through Sonos: browse the "pimooss" library from the player's media browser.
 # The Sony TV (Cast) and the Yoto aren't Spotify targets, so they're not rooms.
-# Copy to /config/packages/ and reload input booleans, template entities and
-# automations.
+#
+# Moods: three one-tap moods for the time of day (sensor.music_moods, below),
+# each a pool of playlists that rotates on every play
+# (input_text.music_rotation keeps each mood's place) and plays shuffled, so
+# the same tile rarely plays the same thing twice. sensor.music_mood_1..3
+# name the moods and the playlist each plays next, for the dashboards' tiles.
+# Copy to /config/packages/ and reload input booleans, input texts, template
+# entities, scripts and automations.
+
+input_text:
+  # How far each mood's pool has got, as JSON ({"jazz": 3, ...}).
+  music_rotation:
+    name: Music rotation
+    max: 255
 
 input_boolean:
   music_living_room:
@@ -34,6 +46,114 @@ template:
           {% set playing = rooms.values() | select('is_state', 'playing') | list %}
           {% set first = (chosen.list + playing + ['media_player.tv_room'])[0] %}
           {{ (state_attr(first, 'group_members') or [first])[0] }}
+
+  # The part of the day (morning 5-10, daytime 10-17, evening 17-21, night),
+  # its three moods, and every mood's playlists. A playlist is [name, Spotify
+  # ID] or [name, ID, months] for a seasonal one (NZ seasons: autumn is
+  # March to May). Spotify's own playlists (37i9...) change every week or so;
+  # the rest are from the pimooss library. To add one, find its ID in the
+  # Spotify app (Share > Copy link: open.spotify.com/playlist/<ID>).
+  - sensor:
+      - name: Music moods
+        unique_id: music_moods
+        icon: mdi:playlist-music
+        state: >
+          {% set h = now().hour %}
+          {{ 'Night' if h >= 21 or h < 5 else 'Morning' if h < 10 else 'Daytime' if h < 17 else 'Evening' }}
+        attributes:
+          moods: >
+            {% set h = now().hour %}
+            {{ ['winddown', 'piano', 'synthwave'] if h >= 21 or h < 5
+               else ['jazz', 'piano', 'kids'] if h < 10
+               else ['focus', 'upbeat', 'acoustic'] if h < 17
+               else ['dinner', 'jazz', 'kids'] }}
+          catalogue: >
+            {{ {
+              'jazz': {'name': 'Jazz', 'icon': 'mdi:saxophone', 'playlists': [
+                ['Good Morning Jazz', '37i9dQZF1DX71VcjjnyaBQ'],
+                ['Cozy Coffee Shop Jazz', '37i9dQZF1DWTr1aQUUVrXx'],
+                ['Feel Good Jazz', '37i9dQZF1DWZCkamcYMQkz'],
+                ['Jazz Vibes', '37i9dQZF1DX0SM0LYsmbMT'],
+                ['Bossa Nova Classics', '37i9dQZF1DWWgccrbg3zbJ']]},
+              'piano': {'name': 'Piano', 'icon': 'mdi:piano', 'playlists': [
+                ['Coffee and Piano', '37i9dQZF1DX3TPMgP3ojGS'],
+                ['Peaceful Piano', '37i9dQZF1DX4sWSpwq3LiO'],
+                ['Peaceful Piano (Lofi Girl)', '1u4F50HA53L3Jwxbnk9IeO'],
+                ['The Piano Bar', '37i9dQZF1DWVvXA824aCbn'],
+                ['Autumn Piano', '37i9dQZF1DWUXyq4CJGeZ5', [3, 4, 5]],
+                ['Peaceful Summer Piano', '37i9dQZF1DWTjLfR5thd2p', [12, 1, 2]]]},
+              'acoustic': {'name': 'Acoustic', 'icon': 'mdi:guitar-acoustic', 'playlists': [
+                ['Your Favorite Coffeehouse', '37i9dQZF1DX6ziVCJnEm59'],
+                ['Chill Acoustic Covers', '71ptfoMA6qUNlLKfX8xRFR'],
+                ['Coffee House Guitar', '37i9dQZF1DWTJgU1HZwJwV'],
+                ['Bossa Chill', '37i9dQZF1DX2m4xSMtooam']]},
+              'kids': {'name': 'Kids', 'icon': 'mdi:teddy-bear', 'playlists': [
+                ['Jodie', '2SdqeNcQBMQ9ZModCmkjww'],
+                ['Comptines & Chansons', '37i9dQZF1DWY77tub05nHz'],
+                ['Les plus belles comptines', '37i9dQZF1DXc8KSUcl9z4s']]},
+              'focus': {'name': 'Focus', 'icon': 'mdi:head-lightbulb-outline', 'playlists': [
+                ['lofi beats', '37i9dQZF1DWWQRwui0ExPn'],
+                ['Lofi Study 2026', '6zCID88oNjNv9zx6puDHKj'],
+                ['Lofi Japan', '5YKm5Zt0AUdKrlrvWzUV6l'],
+                ['Synthwave beats to chill to', '1YIe34rcmLjCYpY9wJoM2p'],
+                ['In The Zone', '3zKwJT7B6z4Ee6QA3qJBCG'],
+                ['lofi autumn beats', '37i9dQZF1DX9O8HCSWScgZ', [3, 4, 5]]]},
+              'upbeat': {'name': 'Upbeat', 'icon': 'mdi:emoticon-happy-outline', 'playlists': [
+                ['Mood Booster', '37i9dQZF1DX3rxVfibe1L0'],
+                ['1001 Songs You Must Hear', '12TqMgaZKMw6RF39JK6eeF'],
+                ['Road trip', '73W7KRYg0HJHlRbgsvmpWq'],
+                ['Favoris des radios', '56B5gWPOVBLxtwRDEVNA0K'],
+                ['Queen Platinum Collection', '4XEhV48r6orMXWyxfpUIUV']]},
+              'dinner': {'name': 'Dinner', 'icon': 'mdi:silverware-fork-knife', 'playlists': [
+                ['Dinner with Friends', '37i9dQZF1DX4xuWVBs4FgJ'],
+                ['Feel Good Dinner', '37i9dQZF1DXbm6HfkbMtFZ'],
+                ['Dîner entre amis', '37i9dQZF1DX915ogFalrko'],
+                ['Bossa Nova Classics', '37i9dQZF1DWWgccrbg3zbJ']]},
+              'winddown': {'name': 'Wind down', 'icon': 'mdi:weather-night', 'playlists': [
+                ['Ambient Relaxation', '37i9dQZF1DX3Ogo9pFvBkY'],
+                ['Studio Ghibli Favs', '0dX6pmsDizoY72gPO29Hwj'],
+                ['Ambient Dreams', '37i9dQZF1DXdf43Md5h6cE'],
+                ['Hayao Miyazaki', '0VoHlMqmnnbBX2iZyNsR4N'],
+                ['Peaceful Piano', '37i9dQZF1DX4sWSpwq3LiO']]},
+              'synthwave': {'name': 'Synthwave', 'icon': 'mdi:waveform', 'playlists': [
+                ['Synthwave Chill', '37i9dQZF1DX8V4BE7YIpvE'],
+                ['Synthwave Night Drive', '0iAeUtwINlqfjwAyQ4ykur'],
+                ['NewRetroWave Essentials', '3SA018Uo3yhzvQocaF02MV'],
+                ['Synthwave beats to chill to', '1YIe34rcmLjCYpY9wJoM2p']]},
+            } }}
+
+  # The three moods of the moment, for the dashboards' tiles: named after the
+  # mood, showing the playlist it plays next (the in-season part of its pool,
+  # at the mood's place in the rotation). Each reads its slot from its entity
+  # ID (sensor.music_mood_1..3).
+  - sensor:
+      - &mood_slot
+        name: >
+          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+          {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('name', 'Music') }}
+        unique_id: music_mood_1
+        default_entity_id: sensor.music_mood_1
+        icon: >
+          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+          {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('icon', 'mdi:music') }}
+        state: >
+          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+          {% set mood = (state_attr('sensor.music_moods', 'catalogue') or {}).get(key) %}
+          {% if mood %}
+            {% set ns = namespace(pool=[]) %}
+            {% for p in mood.playlists if p | count < 3 or now().month in p[2] %}
+              {% set ns.pool = ns.pool + [p[0]] %}
+            {% endfor %}
+            {% set rot = states('input_text.music_rotation') %}
+            {% set i = (rot | from_json if rot.startswith('{') else {}).get(key, 0) | int %}
+            {{ ns.pool[i % ns.pool | count] }}
+          {% else %}unknown{% endif %}
+      - <<: *mood_slot
+        unique_id: music_mood_2
+        default_entity_id: sensor.music_mood_2
+      - <<: *mood_slot
+        unique_id: music_mood_3
+        default_entity_id: sensor.music_mood_3
 
 script:
   # The "Everywhere" tile: every room on (one regroup, see the debounce below).
@@ -94,29 +214,64 @@ script:
           media_content_type: playlist
           enqueue: replace
 
-  # Wall-phone shortcuts: Spotify's own playlists in the dining room and
-  # hallway.
-  music_morning_jazz:
-    alias: Morning jazz
-    icon: mdi:saxophone
+  # The mood tiles: play the next playlist of one of the moment's moods
+  # (sensor.music_mood_<slot>), shuffled from a random track, in the rooms
+  # already switched on (the dining room if none), and move that mood's
+  # rotation on.
+  music_play_mood:
+    alias: Music play mood
+    icon: mdi:playlist-play
+    mode: restart
+    fields:
+      slot:
+        description: Which of the moment's three moods (1, 2 or 3)
+        required: true
     sequence:
+      - variables:
+          key: "{{ (state_attr('sensor.music_moods', 'moods') or [])[slot | int(1) - 1] | default('') }}"
+          mood: "{{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key) }}"
+      - condition: "{{ mood is mapping }}"
+      - variables:
+          pool: >
+            {% set ns = namespace(pool=[]) %}
+            {% for p in mood.playlists if p | count < 3 or now().month in p[2] %}
+              {% set ns.pool = ns.pool + [p[1]] %}
+            {% endfor %}
+            {{ ns.pool }}
+          rotation: >
+            {% set r = states('input_text.music_rotation') %}
+            {{ r | from_json if r.startswith('{') else {} }}
+          i: "{{ (rotation.get(key, 0) | int) % (pool | count) }}"
+          rooms: >
+            {% set on = ['input_boolean.music_living_room', 'input_boolean.music_dining_room',
+                         'input_boolean.music_hallway'] | select('is_state', 'on') | list %}
+            {{ on or ['input_boolean.music_dining_room'] }}
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.music_rotation
+        data:
+          value: >
+            {{ dict(rotation.items() | rejectattr(0, 'eq', key) | list
+                    + [(key, (i + 1) % (pool | count))]) | to_json }}
       - action: script.music_play_playlist
         data:
-          # Good Morning Jazz (Spotify)
-          playlist: spotify:playlist:37i9dQZF1DX71VcjjnyaBQ
-          rooms: &morning_rooms
-            - input_boolean.music_dining_room
-            - input_boolean.music_hallway
-
-  music_morning_piano:
-    alias: Morning piano
-    icon: mdi:piano
-    sequence:
-      - action: script.music_play_playlist
+          playlist: "spotify:playlist:{{ pool[i] }}"
+          rooms: "{{ rooms }}"
+      # Shuffle, then skip, so it doesn't always open on the playlist's
+      # first track.
+      - variables:
+          player: "{{ states('sensor.music_speaker') }}"
+      - wait_template: "{{ is_state(player, 'playing') }}"
+        timeout: 15
+        continue_on_timeout: false
+      - action: media_player.shuffle_set
+        target:
+          entity_id: "{{ player }}"
         data:
-          # Coffee and Piano (Spotify)
-          playlist: spotify:playlist:37i9dQZF1DX3TPMgP3ojGS
-          rooms: *morning_rooms
+          shuffle: true
+      - action: media_player.media_next_track
+        target:
+          entity_id: "{{ player }}"
 
 automation:
   - id: music_rooms_regroup

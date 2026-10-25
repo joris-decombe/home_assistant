@@ -128,10 +128,16 @@ Room Beam = living room, Dining Room, Hallway). `config/packages/music.yaml`
 holds one `input_boolean.music_*` per room. Its automation groups the chosen
 speakers (debounced 1 s), and `sensor.music_speaker` names the group's
 coordinator, which picks the player card that shows. Spotify music is chosen
-from the player's media browser (Sonos → pimooss), or from the *Morning jazz*
-and *Morning piano* shortcuts (`script.music_play_playlist`: Spotify URIs that
-Sonos plays itself, in the dining room and hallway). The switches don't follow
-grouping done in the Sonos app or in HA's own group dialog.
+from the player's media browser (Sonos → pimooss), or from three **mood**
+tiles that change with the time of day (`sensor.music_moods`: morning Jazz ·
+Piano · Kids, daytime Focus · Upbeat · Acoustic, evening Dinner · Jazz · Kids,
+night Wind down · Piano · Synthwave). Each mood is a pool of playlists in that
+sensor's `catalogue` attribute, rotated by `input_text.music_rotation` and
+played shuffled by `script.music_play_mood` (through
+`script.music_play_playlist`: Spotify URIs that Sonos plays itself) in the
+rooms switched on, else the dining room; `sensor.music_mood_1..3` show the
+playlist each plays next. The switches don't follow grouping done in the
+Sonos app or in HA's own group dialog.
 
 The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
