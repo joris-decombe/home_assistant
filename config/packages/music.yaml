@@ -10,6 +10,7 @@
 # (input_text.music_rotation keeps each mood's place) and plays shuffled, so
 # the same tile rarely plays the same thing twice. sensor.music_mood_1..3
 # name the moods and the playlist each plays next, for the dashboards' tiles.
+# number.music_volume is one volume for the group playing.
 # Copy to /config/packages/ and reload input booleans, input texts, template
 # entities, scripts and automations.
 
@@ -46,6 +47,44 @@ template:
           {% set playing = rooms.values() | select('is_state', 'playing') | list %}
           {% set first = (chosen.list + playing + ['media_player.tv_room'])[0] %}
           {{ (state_attr(first, 'group_members') or [first])[0] }}
+
+  # One volume for whatever is playing: the average of the group's speakers.
+  # Setting it moves every speaker by the same amount, so the rooms keep
+  # their balance (Sonos has no group volume in HA).
+  - number:
+      - name: Music volume
+        unique_id: music_volume
+        unit_of_measurement: "%"
+        min: 0
+        max: 100
+        step: 2
+        icon: >
+          {% set sp = states('sensor.music_speaker') %}
+          {% set v = (state_attr(sp, 'group_members') or [sp]) | map('state_attr', 'volume_level')
+                     | select('number') | list %}
+          {% set v = (v | sum / v | count * 100) if v else 0 %}
+          {{ 'mdi:volume-off' if v == 0 else 'mdi:volume-low' if v < 25 else 'mdi:volume-medium' if v < 55 else 'mdi:volume-high' }}
+        state: >
+          {% set sp = states('sensor.music_speaker') %}
+          {% set v = (state_attr(sp, 'group_members') or [sp]) | map('state_attr', 'volume_level')
+                     | select('number') | list %}
+          {{ (v | sum / v | count * 100) | round(0) if v else 0 }}
+        set_value:
+          - variables:
+              speakers: >
+                {% set sp = states('sensor.music_speaker') %}
+                {{ state_attr(sp, 'group_members') or [sp] }}
+              levels: "{{ speakers | map('state_attr', 'volume_level') | map('float', 0) | list }}"
+              delta: "{{ value / 100 - (levels | sum / levels | count) }}"
+          - repeat:
+              for_each: "{{ speakers }}"
+              sequence:
+                - action: media_player.volume_set
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    volume_level: >
+                      {{ ([0, [1, state_attr(repeat.item, 'volume_level') | float(0) + delta] | min] | max) | round(2) }}
 
   # The part of the day (morning 5-10, daytime 10-17, evening 17-21, night),
   # its three moods, and every mood's playlists. A playlist is [name, Spotify
