@@ -996,31 +996,40 @@ views:
           - <<: *room
             entity: input_boolean.music_hallway
             name: Hallway
-          # One-tap playlists in the dining room and hallway (scripts in
-          # config/packages/music.yaml).
-          - &shortcut
+          # The time of day's three moods (config/packages/music.yaml): one
+          # tap plays the playlist each shows next, shuffled, in the rooms
+          # switched on above (the dining room if none), and moves that
+          # mood on to its next playlist.
+          - &mood
             type: tile
-            entity: script.music_morning_jazz
-            name: Morning jazz
+            entity: sensor.music_mood_1
             color: deep-orange
-            hide_state: true
-            tap_action:
+            tap_action: &play_mood_1
               action: perform-action
-              perform_action: script.music_morning_jazz
-            icon_tap_action:
-              action: perform-action
-              perform_action: script.music_morning_jazz
+              perform_action: script.music_play_mood
+              data:
+                slot: 1
+            icon_tap_action: *play_mood_1
             grid_options:
-              columns: 6
-          - <<: *shortcut
-            entity: script.music_morning_piano
-            name: Morning piano
-            tap_action:
+              columns: full
+          - <<: *mood
+            entity: sensor.music_mood_2
+            color: teal
+            tap_action: &play_mood_2
               action: perform-action
-              perform_action: script.music_morning_piano
-            icon_tap_action:
+              perform_action: script.music_play_mood
+              data:
+                slot: 2
+            icon_tap_action: *play_mood_2
+          - <<: *mood
+            entity: sensor.music_mood_3
+            color: indigo
+            tap_action: &play_mood_3
               action: perform-action
-              perform_action: script.music_morning_piano
+              perform_action: script.music_play_mood
+              data:
+                slot: 3
+            icon_tap_action: *play_mood_3
           - &player
             type: media-control
             entity: media_player.tv_room
