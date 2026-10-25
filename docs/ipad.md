@@ -31,7 +31,11 @@ CSS viewport is 1080×810, which gives three columns.
 
 Each tab opens with its title and one live line (on Home, the clock) over a
 panorama of the south coast: Cook Strait and the Kaikōura ranges, the beach,
-harakeke in flower and toetoe. Home is three column sections rather than one
+harakeke in flower and toetoe. Every minute or two something happens in
+it: a pod of dolphins leaps, a humpback blows and dives (every few
+minutes; breaching about every seven), a pukeko struts along the beach by
+day and a kiwi forages at night. Each is a short SMIL animation that
+restarts itself after a pause, so nothing animates in between. Home is three column sections rather than one
 section per topic, because sections side by side line up with the tallest
 one, which made it scroll.
 
