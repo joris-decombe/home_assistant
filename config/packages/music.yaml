@@ -127,33 +127,33 @@ template:
   # at the mood's place in the rotation). Each reads its slot from its entity
   # ID (sensor.music_mood_1..3).
   - sensor:
-      - &mood_slot
-        name: >
-          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
-          {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('name', 'Music') }}
-        unique_id: music_mood_1
+      - unique_id: music_mood_1
         default_entity_id: sensor.music_mood_1
-        icon: >
-          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
-          {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('icon', 'mdi:music') }}
-        state: >
-          {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
-          {% set mood = (state_attr('sensor.music_moods', 'catalogue') or {}).get(key) %}
-          {% if mood %}
-            {% set ns = namespace(pool=[]) %}
-            {% for p in mood.playlists if p | count < 3 or now().month in p[2] %}
-              {% set ns.pool = ns.pool + [p[0]] %}
-            {% endfor %}
-            {% set rot = states('input_text.music_rotation') %}
-            {% set i = (rot | from_json if rot.startswith('{') else {}).get(key, 0) | int %}
-            {{ ns.pool[i % ns.pool | count] }}
-          {% else %}unknown{% endif %}
-      - <<: *mood_slot
-        unique_id: music_mood_2
+        <<: &mood_slot
+          name: >
+            {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+            {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('name', 'Music') }}
+          icon: >
+            {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+            {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('icon', 'mdi:music') }}
+          state: >
+            {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
+            {% set mood = (state_attr('sensor.music_moods', 'catalogue') or {}).get(key) %}
+            {% if mood %}
+              {% set ns = namespace(pool=[]) %}
+              {% for p in mood.playlists if p | count < 3 or now().month in p[2] %}
+                {% set ns.pool = ns.pool + [p[0]] %}
+              {% endfor %}
+              {% set rot = states('input_text.music_rotation') %}
+              {% set i = (rot | from_json if rot.startswith('{') else {}).get(key, 0) | int %}
+              {{ ns.pool[i % ns.pool | count] }}
+            {% else %}unknown{% endif %}
+      - unique_id: music_mood_2
         default_entity_id: sensor.music_mood_2
-      - <<: *mood_slot
-        unique_id: music_mood_3
+        <<: *mood_slot
+      - unique_id: music_mood_3
         default_entity_id: sensor.music_mood_3
+        <<: *mood_slot
 
 script:
   # The "Everywhere" tile: every room on (one regroup, see the debounce below).
