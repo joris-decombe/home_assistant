@@ -581,6 +581,35 @@ views:
               - condition: state
                 entity: media_player.hallway
                 state: [playing, paused]
+          # One volume for the whole group playing (number.music_volume moves
+          # every speaker by the same amount), while something plays.
+          - &music_volume
+            type: tile
+            entity: number.music_volume
+            name: Volume
+            color: green
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: slider
+            grid_options:
+              columns: full
+            visibility:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity: media_player.dining_room
+                    state: [playing, paused]
+                  - condition: state
+                    entity: media_player.tv_room
+                    state: [playing, paused]
+                  - condition: state
+                    entity: media_player.hallway
+                    state: [playing, paused]
           # Hold opens the mood's details: its next playlist.
           - &mood
             type: tile
@@ -1549,6 +1578,8 @@ views:
             heading: Volume
             heading_style: subtitle
             icon: mdi:volume-high
+          - <<: *music_volume
+            visibility: []
           - &volume
             type: tile
             entity: media_player.tv_room
