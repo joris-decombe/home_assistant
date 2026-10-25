@@ -51,8 +51,15 @@ template:
   # One volume for whatever is playing: the average of the group's speakers.
   # Setting it moves every speaker by the same amount, so the rooms keep
   # their balance (Sonos has no group volume in HA).
+  # Named after what's playing ("Title · Artist"), so on the iPad's Home one
+  # tile is both the player and its volume.
   - number:
-      - name: Music volume
+      - name: >
+          {% set sp = states('sensor.music_speaker') %}
+          {% set t = state_attr(sp, 'media_title') %}
+          {% set a = state_attr(sp, 'media_artist') %}
+          {{ (t ~ (' · ' ~ a if a else '')) if t and states(sp) in ['playing', 'paused'] else 'Music volume' }}
+        default_entity_id: number.music_volume
         unique_id: music_volume
         unit_of_measurement: "%"
         min: 0
@@ -252,6 +259,15 @@ script:
           media_content_id: "{{ playlist }}"
           media_content_type: playlist
           enqueue: replace
+
+  # Play/pause whatever the dashboards' player shows (the group's coordinator).
+  music_play_pause:
+    alias: Music play/pause
+    icon: mdi:play-pause
+    sequence:
+      - action: media_player.media_play_pause
+        target:
+          entity_id: "{{ states('sensor.music_speaker') }}"
 
   # The mood tiles: play the next playlist of one of the moment's moods
   # (sensor.music_mood_<slot>), shuffled from a random track, in the rooms

@@ -23,10 +23,13 @@ views:
     icon: mdi:home
     type: sections
     theme: South Coast
+    # The theme's panorama, higher up to suit the shorter header.
+    background: var(--ipad-home-background)
     max_columns: 3
     dense_section_placement: true
-    # The clock, with the next sunset (by day) or sunrise (at night). The
-    # empty line under it leaves the theme's sea and beach in view.
+    # The clock, with the next sunset (by day) or sunrise (at night). No
+    # spacer line under it (the other views have one), so Home still fits
+    # on one screen with the player and its volume showing.
     header:
       layout: responsive
       badges_position: bottom
@@ -37,8 +40,6 @@ views:
           {%- set up = is_state('sun.sun', 'above_horizon') %}
           # {{ now().strftime('%H:%M') }}
           {{ now().strftime('%A %-d %B') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
-
-          &nbsp;
     # Who's home, then badges that only show while something needs a look.
     badges:
       - &person
@@ -528,11 +529,11 @@ views:
               action: toggle
             grid_options:
               columns: 6
-          # Music for the kitchen: while something plays, the player of
-          # whichever room group is chosen (sensor.music_speaker,
-          # config/packages/music.yaml); always, the three moods of the time of
-          # day, each playing the next playlist of its pool, shuffled. Rooms
-          # and Spotify browsing are on the Music view (the heading opens it).
+          # Music for the kitchen (config/packages/music.yaml): while
+          # something plays, the song with its volume; always, the three moods
+          # of the time of day, each playing the next playlist of its pool,
+          # shuffled. Rooms and Spotify browsing are on the Music view (the
+          # heading opens it).
           - type: heading
             heading: Music
             heading_style: subtitle
@@ -540,58 +541,21 @@ views:
             tap_action:
               action: navigate
               navigation_path: /ipad-home/music
-          - &now_playing
-            type: tile
-            entity: media_player.dining_room
-            state_content:
-              - media_title
-              - media_artist
-            color: green
-            grid_options:
-              columns: full
-            features_position: inline
-            features:
-              - type: media-player-playback
-                controls:
-                  - play_pause
-                  - next
-            visibility:
-              - condition: state
-                entity: sensor.music_speaker
-                state: media_player.dining_room
-              - condition: state
-                entity: media_player.dining_room
-                state: [playing, paused]
-          - <<: *now_playing
-            entity: media_player.tv_room
-            name: Living room
-            visibility:
-              - condition: state
-                entity: sensor.music_speaker
-                state: media_player.tv_room
-              - condition: state
-                entity: media_player.tv_room
-                state: [playing, paused]
-          - <<: *now_playing
-            entity: media_player.hallway
-            visibility:
-              - condition: state
-                entity: sensor.music_speaker
-                state: media_player.hallway
-              - condition: state
-                entity: media_player.hallway
-                state: [playing, paused]
-          # One volume for the whole group playing (number.music_volume moves
-          # every speaker by the same amount), while something plays.
+          # While something plays, one row is the player and its volume:
+          # number.music_volume is named after the song and moves every
+          # speaker in the group by the same amount. The icon plays/pauses;
+          # the rest opens the Music view (rooms, skip, Spotify browsing).
           - &music_volume
             type: tile
             entity: number.music_volume
-            name: Volume
+            icon: mdi:play-pause
             color: green
             tap_action:
-              action: none
+              action: navigate
+              navigation_path: /ipad-home/music
             icon_tap_action:
-              action: none
+              action: perform-action
+              perform_action: script.music_play_pause
             features_position: inline
             features:
               - type: numeric-input
@@ -1579,6 +1543,12 @@ views:
             heading_style: subtitle
             icon: mdi:volume-high
           - <<: *music_volume
+            name: All rooms
+            icon: mdi:volume-high
+            tap_action:
+              action: none
+            icon_tap_action:
+              action: none
             visibility: []
           - &volume
             type: tile
