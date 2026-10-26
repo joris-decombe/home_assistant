@@ -4,8 +4,8 @@
 # Logged in as the local-only, non-admin "iPad" user, in the companion app's
 # kiosk mode (config/packages/ipad.yaml, docs/ipad.md).
 #
-# Home fits on one screen with no scrolling: the clock and who's home on
-# top, then weather, energy and the car, heating and lights, and music for
+# Home fits on one screen with no scrolling: the clock on top, then
+# weather, energy and the car, heating and lights, and music for
 # the dining room. Badges in the top bar only appear when something needs
 # attention. The other tabs hold the detail, each under its title and one
 # live line. Every view uses the South Coast theme
@@ -40,17 +40,9 @@ views:
           {%- set up = is_state('sun.sun', 'above_horizon') %}
           # {{ now().strftime('%H:%M') }}
           {{ now().strftime('%A %-d %B') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
-    # Who's home, then badges that only show while something needs a look.
+    # Badges that only show while something needs a look. No one's
+    # home/away badges: they sat over the panorama's whale.
     badges:
-      - &person
-        type: entity
-        entity: person.joris
-        show_name: true
-        show_state: true
-        tap_action:
-          action: none
-      - <<: *person
-        entity: person.pauline
       - &alert_badge
         type: entity
         entity: binary_sensor.camera_front_door_person
@@ -543,7 +535,9 @@ views:
               navigation_path: /ipad-home/music
           # While something plays, one row is the player and its volume:
           # number.music_volume is named after the song and moves every
-          # speaker in the group by the same amount. The icon plays/pauses;
+          # speaker in the group by the same amount, 5% a tap of - or +
+          # (a slider was too fiddly by touch, and a second row for one
+          # doesn't fit; the Music view has both). The icon plays/pauses;
           # the rest opens the Music view (rooms, skip, Spotify browsing).
           - &music_volume
             type: tile
@@ -559,7 +553,7 @@ views:
             features_position: inline
             features:
               - type: numeric-input
-                style: slider
+                style: buttons
             grid_options:
               columns: full
             visibility:
@@ -1542,6 +1536,8 @@ views:
             heading: Volume
             heading_style: subtitle
             icon: mdi:volume-high
+          # Each volume is a slider with - and + (5%) under it: the
+          # slider alone was hard to use by touch.
           - <<: *music_volume
             name: All rooms
             icon: mdi:volume-high
@@ -1549,6 +1545,11 @@ views:
               action: none
             icon_tap_action:
               action: none
+            features:
+              - type: numeric-input
+                style: slider
+              - type: numeric-input
+                style: buttons
             visibility: []
           - &volume
             type: tile
@@ -1563,6 +1564,8 @@ views:
             features_position: inline
             features:
               - type: media-player-volume-slider
+              - type: media-player-volume-buttons
+                step: 5
             grid_options:
               columns: full
             visibility:

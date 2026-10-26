@@ -52,7 +52,8 @@ template:
   # Setting it moves every speaker by the same amount, so the rooms keep
   # their balance (Sonos has no group volume in HA).
   # Named after what's playing ("Title · Artist"), so on the iPad's Home one
-  # tile is both the player and its volume.
+  # tile is both the player and its volume. Steps of 5, for the dashboards'
+  # - and + buttons.
   - number:
       - name: >
           {% set sp = states('sensor.music_speaker') %}
@@ -64,7 +65,7 @@ template:
         unit_of_measurement: "%"
         min: 0
         max: 100
-        step: 2
+        step: 5
         icon: >
           {% set sp = states('sensor.music_speaker') %}
           {% set v = (state_attr(sp, 'group_members') or [sp]) | map('state_attr', 'volume_level')

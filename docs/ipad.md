@@ -9,11 +9,14 @@ CSS viewport is 1080×810, which gives three columns.
 ## The dashboard
 
 - **Home** fits on one screen: the clock (with the next sunset or sunrise)
-  and who's home across the top, then weather with the 12 h wind chart and
+  across the top, then weather with the 12 h wind chart and
   the week ahead, live energy, heating, the car, lights, music and the
-  vacuum. The badges next to the people only appear when something needs a
+  vacuum. The badges under the clock only appear when something needs a
   look: someone at the door or in the garage, Jodie's heater on, the vacuum
-  stuck, low batteries, Pi under-voltage. Section headings open their detail
+  stuck, low batteries, Pi under-voltage. (There are no badges for who's
+  home: they hid the panorama's whale.) The music row is the song with − and
+  + for the whole group's volume (5% a tap); the Music view has a slider and
+  − / + for the group and each room. Section headings open their detail
   tab.
 - **Climate**: each heat pump's thermostat with modes and fan, Jodie's
   heater with presets, every room's temperature and humidity with a 24 h
@@ -33,9 +36,15 @@ Each tab opens with its title and one live line (on Home, the clock) over a
 panorama of the south coast: Cook Strait and the Kaikōura ranges, the beach,
 harakeke in flower and toetoe. Every minute or two something happens in
 it: a pod of dolphins leaps, a humpback blows and dives (every few
-minutes; breaching about every seven), a pukeko struts along the beach by
-day and a kiwi forages at night. Each is a short SMIL animation that
-restarts itself after a pause, so nothing animates in between. Home is three column sections rather than one
+minutes; breaching about every seven), a crab peeks out of its burrow and
+darts to another, and a kiwi forages (more often at night). By day a
+pukeko struts along the beach, a pair of tōrea pango (oystercatchers)
+probe the wet sand, and a kōtare flies in, perches on a rock and pounces.
+They're drawn cute, not realistic: round, with shiny eyes and pink cheeks.
+Each is a short SMIL animation that restarts itself after a pause, so
+nothing animates in between, and each ends out of sight (under the water,
+in a burrow, off the edge) with its opacity frozen at 0, so none can get
+stuck on screen. Home is three column sections rather than one
 section per topic, because sections side by side line up with the tallest
 one, which made it scroll.
 
