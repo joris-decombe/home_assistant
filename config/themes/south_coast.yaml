@@ -1,4 +1,4 @@
-# South Coast: the iPad dashboard's theme (config/dashboards/ipad.yaml sets
+# South Coast: the iPad's and the wall phone's theme (their dashboards set
 # it on every view), after Wellington's south coast. Sea teal and sand, a
 # pōhutukawa-red accent, and a panorama across the top of the screen,
 # between the clock and the cards: Cook Strait with the Kaikōura ranges on the
@@ -16,6 +16,11 @@
 # has to fit on one screen), so Home uses ipad-home-background: the same
 # picture 28 px down, keeping the beach clear of its section headings. It follows
 # the iPad's light/dark appearance (set the iPad to Automatic).
+# The wall phone (config/dashboards/wall_phone.yaml, 412 px wide) uses it
+# too, through wall-phone-background: the same height as on the iPad, so the
+# horizon still falls under each title, cropped to the right-hand part of
+# the coast (the sun or moon, the rocks with the kōtare and the crab, and
+# the humpback); its views' live lines are short enough to stay on one line.
 # Cards stay solid so text reads cleanly over the picture, and HA's own state
 # colours are untouched, so solar is still amber and heating deep orange.
 # The pictures are config/www/ipad/coast-{day,night}.svg (/config/www/ipad/
@@ -43,6 +48,7 @@ South Coast:
       secondary-background-color: "#e7e0d3"
       lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-day.svg?v=5"), #f2ede4'
       ipad-home-background: 'center 28px / 100% auto no-repeat url("/local/ipad/coast-day.svg?v=5"), #f2ede4'
+      wall-phone-background: '-596px 64px / auto 176px no-repeat url("/local/ipad/coast-day.svg?v=5"), #f2ede4'
       card-background-color: "#fffdf9"
       ha-card-background: "#fffdf9"
       ha-card-box-shadow: "0 1px 2px rgba(60, 45, 20, 0.05), 0 6px 20px rgba(60, 45, 20, 0.07)"
@@ -61,6 +67,7 @@ South Coast:
       secondary-background-color: "#122230"
       lovelace-background: 'center 64px / 100% auto no-repeat url("/local/ipad/coast-night.svg?v=5"), #0b1620'
       ipad-home-background: 'center 28px / 100% auto no-repeat url("/local/ipad/coast-night.svg?v=5"), #0b1620'
+      wall-phone-background: '-596px 64px / auto 176px no-repeat url("/local/ipad/coast-night.svg?v=5"), #0b1620'
       card-background-color: "#13212c"
       ha-card-background: "#13212c"
       ha-card-box-shadow: "none"

@@ -1,10 +1,19 @@
 # Wall phone (Galaxy Note 9)
 
 An old Galaxy Note 9 on the wall, permanently on the charger, showing the
-**Wall Phone** dashboard (`config/dashboards/wall_phone.yaml`): clock and weather,
-live solar / load / battery / grid with a power-flow chart, tap-to-toggle
-tiles for lights and heat pumps, and the car charger (status, energy this
-session, Charge now). Power figures are read-only. The **Music** tab picks
+**Wall Phone** dashboard (`config/dashboards/wall_phone.yaml`). It has the
+kitchen iPad's design in one column (see [ipad.md](ipad.md)): the **South
+Coast** theme, whose panorama is cropped to the phone's right-hand stretch
+of coast (`wall-phone-background`: the sun or moon, the rocks with the
+kōtare and a crab, the humpback), and on every tab a title with one live
+line. **Home** has the clock, badges only when something needs a look
+(someone at the door or in the garage, Jodie's heater on, the vacuum stuck,
+Pi under-voltage), then weather and the wind chart, live power, heating,
+lights, the car, music (the song with − and + for the group's volume, and
+the three moods) and the forecast; each heading opens its tab. **Climate**,
+**Energy** (it replaced Power) and **System** (this phone's battery, every
+battery-powered device lowest first, backups) come from the iPad. Power
+figures are read-only. The **Music** tab picks
 which Sonos rooms play Spotify (any mix, or *Everywhere*). The **Kids** tab has
 Jodie's Yoto player, one-tap stories, podcasts and radio (Tintin, Yoto Daily…),
 and dropdowns for Yoto Club series (BrainBots, Dinosaurs, Solar System…). To
@@ -86,8 +95,8 @@ The dashboard shows only what HA can control. As of 2026-10-15:
 | Device | Status | How to add |
 |---|---|---|
 | TP-Link/Tapo plugs | In HA | Lampe salon (on the wall phone). Computer, aquarium pump, aquarium light and TV are for consumption only: they're on the Energy dashboard, not the wall phone. |
-| EV charger (Evnex) | In HA | **Evnex** (HACS, cloud login). Its lifetime meter and metered power are the Energy dashboard's "EV charger" device (replacing Alpha ESS's unused EV counter), shown on the Power view. OCPP was installed but never used, and is removed. |
-| Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.68.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. Living room and Dining room also report lifetime energy (0.1 kWh steps, no live watts; Hall reports neither): they're in the Energy dashboard, and daily `utility_meter` helpers (created in the UI) feed `sensor.heat_pumps_today`, and `derivative` helpers (1 h window) give an approximate power for the Power view's flow chart. |
+| EV charger (Evnex) | In HA | **Evnex** (HACS, cloud login). Its lifetime meter and metered power are the Energy dashboard's "EV charger" device (replacing Alpha ESS's unused EV counter), shown on the Energy view. OCPP was installed but never used, and is removed. |
+| Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.68.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. Living room and Dining room also report lifetime energy (0.1 kWh steps, no live watts; Hall reports neither): they're in the Energy dashboard, and daily `utility_meter` helpers (created in the UI) feed `sensor.heat_pumps_today`, and `derivative` helpers (1 h window) give an approximate power for the Energy view's flow chart. |
 | Xiaomi lights (Mi Home) | In HA | **Xiaomi Home** (Xiaomi's official integration, HACS) on the **Singapore** server: Mi Home's New Zealand region lives there. Ceiling lights (group), both bedside lamps, fan, vacuum, night lights and Bluetooth sensors. An older China-server entry only holds stale copies. |
 | Tapo cameras (C420 + H200 hubs) | In HA | **Tapo Control** (HACS) for live view and controls, **tapo_events** (this repo) for events and clips: the **Cameras** view. See [tapo-cameras.md](tapo-cameras.md). |
 | Matter lights | Not in HA | Matter has no devices paired on this HA (only an old, stale Tapo plug). Add each light with the HA Companion app → Settings → Devices → *Add Matter device*, or share it from its current app with a pairing code. Wi-Fi Matter devices work as is; Thread ones need a border router. |
@@ -99,16 +108,8 @@ Add each new light or `climate.*` entity as a tile under *Lights* or a new
 
 ## 4. iPad
 
-`config/dashboards/ipad.yaml` is the same dashboard laid out for an iPad: three
-columns in landscape, two in portrait, a taller wind chart, and the Home
-section split into *Heat pumps* and *Lights*. It uses the same package helpers.
-Change a card on the wall phone first, then copy it across. Push it with:
-
-```bash
-uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/ipad.yaml ipad-home mdi:tablet
-```
-
-Open `http://192.168.68.68:8123/ipad-home/home` (Safari, *Add to Home Screen*
-for full screen, or the Companion app). Log in as **Wall Phone** or another
-non-admin user and set that user's *Dashboard* to **iPad** to make it the
-start page.
+The kitchen iPad has its own dashboard, `config/dashboards/ipad.yaml`, in
+three columns, with the same package helpers: see [ipad.md](ipad.md). The
+two share a design. The wind chart and the Solar charging, Quakes, Cameras
+and Kids tabs start here and are copied to the iPad; Climate, Energy, Music
+and System start on the iPad and are copied here.

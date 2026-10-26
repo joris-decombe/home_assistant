@@ -13,8 +13,9 @@ CSS viewport is 1080×810, which gives three columns.
   the week ahead, live energy, heating, the car, lights, music and the
   vacuum. The badges under the clock only appear when something needs a
   look: someone at the door or in the garage, Jodie's heater on, the vacuum
-  stuck, low batteries, Pi under-voltage. (There are no badges for who's
-  home: they hid the panorama's whale.) The music row is the song with − and
+  stuck, Pi under-voltage. (There are no badges for who's home or low
+  batteries: they hid the panorama's whale. System lists the batteries.)
+  The music row is the song with − and
   + for the whole group's volume (5% a tap); the Music view has a slider and
   − / + for the group and each room. Section headings open their detail
   tab.
@@ -26,8 +27,9 @@ CSS viewport is 1080×810, which gives three columns.
   graphs (pick a day, week or month), and live and daily figures per device.
   Read-only.
 - **Solar charging**, **Kids**, **Cameras** and **Quakes** are the wall
-  phone's views in three columns; **Music** is the wall phone's, split into
-  rooms, player and volumes.
+  phone's views in three columns; **Music** is split into rooms, player and
+  volumes. The wall phone has this design in one column (its Home, Climate,
+  Energy, Music and System come from here): see `docs/wall-phone.md`.
 - **System**: the iPad's battery, brightness and screen mode (with *Screen off
   now* and *Reload*), every battery-powered device lowest first, backups,
   the Pi's power, the inverter and printer ink.
@@ -95,7 +97,10 @@ then it does nothing.
      night), Time to start **2 minutes**, **Wake on camera motion** on
 2. Settings → Companion app → Sensors → **Camera Motion**: frame rate
    **2 fps** (default 8; plenty for someone walking up, at a quarter of the
-   work), threshold 40%, clear delay 15 s.
+   work), threshold 40%, clear delay 15 s. On the same screen, turn on
+   **Battery Level** and **Battery State**: while they're off in the app it
+   sends them as unavailable, so System shows no battery and the 30–80%
+   charging can't work.
 3. iPad Settings → Display & Brightness → Appearance **Automatic** (the theme
    goes dark at sunset), **Auto-Brightness** off under Accessibility →
    Display & Text Size (HA sets it), True Tone on.
