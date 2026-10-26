@@ -187,9 +187,11 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   now* when the battery is 98%+ and solar is still in surplus
   (`binary_sensor.solar_surplus`). It turns it back off at 1 kW of grid
   import, or when the battery reaches `sensor.car_charging_battery_floor`:
-  how low it can go and still refill by sunset, from
-  `sensor.solar_left_today` (a fitted sun curve × met.no's hourly
-  conditions, no solar forecast integration). `input_boolean.car_solar_charging`
+  how low it can go and still refill before the sun drops below the
+  house's use (it counts only the sun above 1 kW; aiming for sunset
+  stopped the car too early and exported the refill). It and
+  `sensor.solar_left_today` share a fitted sun curve × met.no's hourly
+  conditions, no solar forecast integration. `input_boolean.car_solar_charging`
   marks a session it started, so it never stops a Charge now turned on by hand.
   All three dashboards have a **Solar charging** tab for it (wall phone
   first, then copied; the chart's dashed estimate repeats the package's solar
