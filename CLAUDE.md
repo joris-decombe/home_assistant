@@ -16,12 +16,14 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
   scratch Docker container (port 8124). The Pi's real `configuration.yaml`
   differs: it loads `packages/` and has the recorder tuning. Edit it on the Pi.
 - `config/dashboards/overview.yaml` is the source of truth for the main
-  Overview dashboard (pushed with no `url_path`). Its Home headline and wind
-  chart are copies of the wall phone's: change `wall_phone.yaml` first, then
-  copy them across. `config/dashboards/ipad.yaml` (`ipad-home`, the kitchen
-  iPad) has its own design (see `docs/ipad.md`), but its 12 h wind chart and
-  its Solar charging, Quakes, Cameras and Kids views are copies of the wall
-  phone's too.
+  Overview dashboard (pushed with no `url_path`). Its wind chart is a copy of
+  the wall phone's: change `wall_phone.yaml` first, then copy it across (its
+  Home headline is the phone's older one, with the clock in it).
+  `config/dashboards/ipad.yaml` (`ipad-home`, the kitchen iPad, see
+  `docs/ipad.md`) and the wall phone share one design in three columns and
+  one. The 12 h wind chart and the Solar charging, Quakes, Cameras and Kids
+  views start on the wall phone; the Home layout and the Climate, Energy,
+  Music and System views start on the iPad. Change the source, then copy.
 
 ## Pushing changes to the Pi
 
@@ -106,6 +108,10 @@ output); the owner downloads it from the UI.
 `config/dashboards/wall_phone.yaml` (pushed to `wall-phone`) is for a Galaxy
 Note 9 in free Fully Kiosk: about a 412×846 CSS viewport, a **non-admin** user
 (error cards show no details), and no license (PLUS features add a watermark).
+It uses the iPad's South Coast theme with its own crop of the panorama
+(`wall-phone-background`), so every view sets `background` as well as
+`theme`; keep each view's live line under ~45 characters, or it wraps and
+the panorama no longer lines up under it.
 `config/packages/wall_phone.yaml` holds its helpers:
 - `sensor.hourly_forecast`: 24 h of met.no hourly forecast via
   `weather.get_forecasts`. Excluded from the recorder.

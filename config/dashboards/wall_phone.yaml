@@ -1,23 +1,106 @@
 # Wall-mounted phone (Samsung Galaxy Note 9, QHD+ 1440x2960 portrait) running
 # Fully Kiosk Browser. Android renders it at 3.5x, so the page sees a ~412x846 CSS
-# viewport. The Home view puts clock + wind, power and the heat pumps first,
-# then the car charger.
-# Pushed to the "wall-phone" dashboard:
+# viewport: one column. Pushed to the "wall-phone" dashboard:
 #   uv run --with pyyaml --with websockets scripts/push_dashboard.py config/dashboards/wall_phone.yaml wall-phone
-# Power figures are read-only; only heat pumps, lights, the vacuum and the
-# car charger's Charge now are controllable.
+#
+# The kitchen iPad's design (config/dashboards/ipad.yaml) in one column:
+# every view uses the South Coast theme (config/themes/south_coast.yaml),
+# whose panorama, cropped to the phone (wall-phone-background), sits behind
+# each view's title and one live line; keep those lines short, so they stay
+# on one line over it. Home has the clock on top, badges only when
+# something needs a look, then weather, energy, heating, lights, the car,
+# music and the forecast; section headings open their detail tab.
+#
+# The wind chart and the Solar charging, Quakes, Cameras and Kids views are
+# copied to the iPad and Overview: change them here first. Climate, Energy,
+# Music and System come from the iPad. Power figures are read-only (Alpha
+# ESS controls never appear); the controls are heat pumps, Jodie's heater,
+# the fan, lights, the vacuum, music, Yoto and the car's Charge now.
 title: Wall Phone
 views:
   - title: Home
     path: home
     icon: mdi:home
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
     max_columns: 1
+    # The clock, with the next sunset (by day) or sunrise (at night).
+    header:
+      layout: responsive
+      badges_position: bottom
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          {%- set up = is_state('sun.sun', 'above_horizon') %}
+          # {{ now().strftime('%H:%M') }}
+          {{ now().strftime('%A %-d %B') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
+
+          &nbsp;
+    # Badges that only show while something needs a look (no low
+    # batteries: the System tab lists those).
+    badges:
+      - &alert_badge
+        type: entity
+        entity: binary_sensor.camera_front_door_person
+        name: Someone at the door
+        show_name: true
+        show_state: false
+        icon: mdi:doorbell-video
+        color: red
+        tap_action:
+          action: navigate
+          navigation_path: /wall-phone/cameras
+        visibility:
+          - condition: state
+            entity: binary_sensor.camera_front_door_person
+            state: "on"
+      - <<: *alert_badge
+        entity: binary_sensor.camera_garage_person
+        name: Someone in the garage
+        icon: mdi:garage-alert
+        visibility:
+          - condition: state
+            entity: binary_sensor.camera_garage_person
+            state: "on"
+      - <<: *alert_badge
+        entity: climate.heater_jodie
+        name: Jodie's heater on
+        icon: mdi:radiator
+        color: deep-orange
+        tap_action:
+          action: more-info
+        visibility:
+          - condition: state
+            entity: climate.heater_jodie
+            state_not: "off"
+      - <<: *alert_badge
+        entity: vacuum.rockrobo_sg_64457686_v1
+        name: Vacuum stuck
+        icon: mdi:robot-vacuum-alert
+        color: orange
+        tap_action:
+          action: more-info
+        visibility:
+          - condition: state
+            entity: vacuum.rockrobo_sg_64457686_v1
+            state: error
+      - <<: *alert_badge
+        entity: binary_sensor.raspberry_pi_power_status
+        name: Pi under-voltage
+        icon: mdi:flash-alert
+        color: red
+        tap_action:
+          action: navigate
+          navigation_path: /wall-phone/system
+        visibility:
+          - condition: state
+            entity: binary_sensor.raspberry_pi_power_status
+            state: "on"
     sections:
-      # Clock with the next sunset (by day) or sunrise (at night) and current
-      # weather, then the wind. The headline flags a wind
-      # change of 90 degrees or more (e.g. northerly to southerly) and the
-      # 12 h peak; the chart below shows the next 12 h.
+      # Weather: now, the wind (the headline flags a turn of 90 degrees or
+      # more, e.g. northerly to southerly, and the 12 h peak) and the chart.
       # Data: sensor.hourly_forecast (config/packages/wall_phone.yaml).
       - type: grid
         cards:
@@ -42,6 +125,10 @@ views:
               {%- if recent %} M{{ '%.1f' | format(q.attributes.magnitude) }}, {{ q.attributes.locality }}, {{ q.attributes.depth | round(0) | int }} km deep, {{ relative_time(q.attributes.time | as_datetime) }} ago.
               {%- else %} GeoNet will locate it in a few minutes.{% endif %}
               </ha-alert>
+          - type: heading
+            heading: Weather
+            heading_style: subtitle
+            icon: mdi:weather-partly-cloudy
           - type: markdown
             text_only: true
             grid_options:
@@ -49,7 +136,6 @@ views:
             content: |
               {%- set fc = state_attr('sensor.hourly_forecast', 'forecast') or [] %}
               {%- set dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] %}
-              {%- set arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'] %}
               {%- set icons = {'clear-night': 'weather-night', 'cloudy': 'weather-cloudy', 'exceptional': 'alert-circle-outline', 'fog': 'weather-fog', 'hail': 'weather-hail', 'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'partlycloudy': 'weather-partly-cloudy', 'pouring': 'weather-pouring', 'rainy': 'weather-rainy', 'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'sunny': 'weather-sunny', 'windy': 'weather-windy', 'windy-variant': 'weather-windy-variant'} %}
               {%- macro sector(b) %}{{ ((b | float(0) + 22.5) // 45) | int % 8 }}{% endmacro %}
               {%- macro when(dt) %}{% set l = dt | as_datetime | as_local %}{{ l.strftime('%H:%M') if l.date() == now().date() else l.strftime('%a %H:%M') }}{% endmacro %}
@@ -61,12 +147,10 @@ views:
               {%- if ns.turn is none and 2 <= d <= 6 %}{% set ns.turn = f %}{% endif %}
               {%- if f.wind_speed | float(0) > ns.peak %}{% set ns.peak = f.wind_speed | float(0) %}{% set ns.peak_t = f.datetime %}{% endif %}
               {%- endfor %}
-              {%- set up = is_state('sun.sun', 'above_horizon') %}
-              ## {{ now().strftime('%H:%M') }} · {{ now().strftime('%a %-d %b') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
-              <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ states('weather.forecast_home') | replace('-', ' ') | replace('partlycloudy', 'partly cloudy') | capitalize }} {{ w.temperature | round(0) | int }}° · <ha-icon icon="mdi:weather-windy"></ha-icon> **{{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h**
-              {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %} · <ha-icon icon="mdi:water"></ha-icon> {{ '%.1f mm/12 h' | format(rain) if rain >= 0.1 else 'dry 12 h' }}<br>
-              {%- if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
-              {%- if ns.peak_t %} · peak {{ ns.peak | round(0) | int }} km/h {{ when(ns.peak_t) }}{% endif %}
+              {%- set rain = fc[:12] | map(attribute='precipitation') | map('float', 0) | sum %}
+              ### <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° {{ states('weather.forecast_home') | replace('partlycloudy', 'partly cloudy') | replace('clear-night', 'clear') | replace('-', ' ') | capitalize }} · <ha-icon icon="mdi:weather-windy"></ha-icon> {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h
+              {% if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
+              {%- if ns.peak_t %} · peak **{{ ns.peak | round(0) | int }} km/h** {{ when(ns.peak_t) }}{% endif %} · {{ '%.1f mm rain' | format(rain) if rain >= 0.1 else 'dry' }} next 12 h
           # Last 3 h (grey band, dashed: what the weather entity recorded) and
           # the next 12 h: a row of condition icons along the top every 2 h,
           # wind (blue, km/h, left axis) labelled with its direction,
@@ -311,16 +395,16 @@ views:
                   const t = new Date(fc[0].datetime).getTime();
                   return [[t, m], [t, m + 4 * s]];
 
-      # Live power, read-only. The heading opens the Power view.
+      # Live power, read-only. The heading opens the Energy view.
       - type: grid
         cards:
           - type: heading
-            heading: Power
+            heading: Energy
             heading_style: subtitle
             icon: mdi:flash
             tap_action:
               action: navigate
-              navigation_path: /wall-phone/power
+              navigation_path: /wall-phone/energy
             badges:
               - &badge
                 type: entity
@@ -374,14 +458,16 @@ views:
 
       # Heat pumps and Jodie's heater: icon toggles on/off, -/+ sets the
       # target, the name opens the full thermostat (modes, fan, swing; the
-      # heater's presets and power level). Then lights, Jodie's room
-      # and the vacuum (tap for start / return to dock).
+      # heater's presets and power level). The heading opens Climate.
       - type: grid
         cards:
           - type: heading
-            heading: Home
+            heading: Heating
             heading_style: subtitle
             icon: mdi:home-thermometer
+            tap_action:
+              action: navigate
+              navigation_path: /wall-phone/climate
             badges:
               # Living room + Dining room heat pumps' energy today (Hall's
               # adapter doesn't report it); sensor in the wall-phone package.
@@ -422,14 +508,22 @@ views:
           - <<: *heat_pump
             entity: climate.heater_jodie
             name: Jodie's heater
-          # Lights: tap toggles, hold opens brightness / colour temperature.
-          # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
-          # Both ceiling lights (select.ceiling_lights and its scripts in
-          # config/packages/wall_phone.yaml): tap = on/off, tap the icon =
-          # Night (moonlight) <-> Full. The icon shows the current mode.
+
+      # Lights: tap toggles, hold opens brightness / colour temperature.
+      # Xiaomi lights come from the Xiaomi Home "Singapore" entry (NZ).
+      # Both ceiling lights (select.ceiling_lights and its scripts in
+      # config/packages/wall_phone.yaml): tap = on/off, tap the icon =
+      # Night (moonlight) <-> Full. The icon shows the current mode. Then
+      # Jodie's room temperature and the vacuum (tap: start / return to dock).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Lights
+            heading_style: subtitle
+            icon: mdi:lightbulb-group
           - type: tile
             entity: select.ceiling_lights
-            name: Ceiling lights
+            name: Ceiling
             color: amber
             tap_action:
               action: perform-action
@@ -441,29 +535,33 @@ views:
               columns: 6
           - &light
             type: tile
-            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
-            name: Bedside lamp
-            icon: mdi:lamp
+            entity: switch.lampe_salon
+            name: Lampe salon
+            icon: mdi:floor-lamp
             color: amber
             tap_action:
               action: toggle
             grid_options:
               columns: 6
           - <<: *light
+            entity: light.yeelink_sg_270878066_bslamp2_s_2_light
+            name: Bedside lamp
+            icon: mdi:lamp
+          - <<: *light
             entity: light.yeelink_sg_647181221_bslamp2_s_2_light
             name: Jodie's lamp
             icon: mdi:lamp
-          - <<: *light
-            entity: switch.lampe_salon
-            name: Lampe salon
-            icon: mdi:floor-lamp
+          - type: heading
+            heading: House
+            heading_style: subtitle
+            icon: mdi:home-outline
           - type: tile
             entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
             name: Jodie's room
-            icon: mdi:bed
+            icon: mdi:teddy-bear
             color: teal
             tap_action:
-              action: none
+              action: more-info
             grid_options:
               columns: 6
           - type: tile
@@ -477,13 +575,20 @@ views:
       # The Evnex charger: what it's doing (sensor.car_charger in the
       # wall-phone package), the energy added this session, and Charge now
       # (overrides the charger's off-peak schedule; off returns to it).
-      # Evnex polls its cloud, so changes show up to ~5 minutes late.
+      # Evnex polls its cloud, so changes show up to ~5 minutes late. The
+      # heading opens Solar charging. Then music (config/packages/music.yaml):
+      # while something plays, the song with its volume; always, the three
+      # moods of the time of day, each playing the next playlist of its
+      # pool, shuffled. Rooms and Spotify browsing are on the Music view.
       - type: grid
         cards:
           - type: heading
             heading: Car
             heading_style: subtitle
             icon: mdi:car-electric
+            tap_action:
+              action: navigate
+              navigation_path: /wall-phone/solar-charging
             badges:
               - type: entity
                 entity: sensor.evnex_residential_nz_total_power_usage_today
@@ -491,6 +596,20 @@ views:
                 color: green
                 tap_action:
                   action: none
+              # While config/packages/car_solar_charging.yaml runs a session.
+              - type: entity
+                entity: input_boolean.car_solar_charging
+                name: From solar
+                show_name: true
+                show_state: false
+                icon: mdi:solar-power
+                color: amber
+                tap_action:
+                  action: none
+                visibility:
+                  - condition: state
+                    entity: input_boolean.car_solar_charging
+                    state: "on"
           - type: tile
             entity: sensor.car_charger
             name: Charger
@@ -517,6 +636,81 @@ views:
               action: toggle
             grid_options:
               columns: 6
+          - type: heading
+            heading: Music
+            heading_style: subtitle
+            icon: mdi:music
+            tap_action:
+              action: navigate
+              navigation_path: /wall-phone/music
+          # While something plays, one row is the player and its volume:
+          # number.music_volume is named after the song and moves every
+          # speaker in the group by the same amount, 5% a tap of - or +
+          # (a slider is fiddly by touch; the Music view has both). The
+          # icon plays/pauses; the rest opens the Music view.
+          - &music_volume
+            type: tile
+            entity: number.music_volume
+            icon: mdi:play-pause
+            color: green
+            tap_action:
+              action: navigate
+              navigation_path: /wall-phone/music
+            icon_tap_action:
+              action: perform-action
+              perform_action: script.music_play_pause
+            features_position: inline
+            features:
+              - type: numeric-input
+                style: buttons
+            grid_options:
+              columns: full
+            visibility:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity: media_player.dining_room
+                    state: [playing, paused]
+                  - condition: state
+                    entity: media_player.tv_room
+                    state: [playing, paused]
+                  - condition: state
+                    entity: media_player.hallway
+                    state: [playing, paused]
+          # Hold opens the mood's details: its next playlist.
+          - &mood
+            type: tile
+            entity: sensor.music_mood_1
+            color: deep-orange
+            vertical: true
+            hide_state: true
+            tap_action: &play_mood_1
+              action: perform-action
+              perform_action: script.music_play_mood
+              data:
+                slot: 1
+            icon_tap_action: *play_mood_1
+            grid_options:
+              columns: 4
+              rows: 2
+          - <<: *mood
+            entity: sensor.music_mood_2
+            color: teal
+            tap_action: &play_mood_2
+              action: perform-action
+              perform_action: script.music_play_mood
+              data:
+                slot: 2
+            icon_tap_action: *play_mood_2
+          - <<: *mood
+            entity: sensor.music_mood_3
+            color: indigo
+            tap_action: &play_mood_3
+              action: perform-action
+              perform_action: script.music_play_mood
+              data:
+                slot: 3
+            icon_tap_action: *play_mood_3
 
       # Least urgent, so below the controls: the next 24 h (the same chart as
       # the one at the top, without the past, labels every 3 h from +1 h), then the
@@ -708,6 +902,195 @@ views:
             grid_options:
               columns: full
 
+  # Climate: each heat pump's full thermostat (modes and fan), Jodie's
+  # heater with its presets, every room's temperature with the last day as a
+  # trend line, the Mi standing fan, and the heat pumps' energy per day.
+  - title: Climate
+    path: climate
+    icon: mdi:thermostat
+    type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Climate
+          {%- set on = ['climate.living_room', 'climate.dining_room', 'climate.hall', 'climate.heater_jodie'] | reject('is_state', 'off') | list | count %}
+          {%- set t = ['sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_temperature_p_2_1', 'sensor.dining_room_measured_value_of_room_temperature', 'sensor.hall_measured_value_of_room_temperature', 'sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1', 'sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_temperature_p_2_1'] | map('states') | select('is_number') | map('float') | list %}
+          {{ 'Nothing heating' if on == 0 else on ~ ' on' }} · inside {{ t | min | round(0) | int }}–{{ t | max | round(0) | int }}° · outside {{ state_attr('weather.forecast_home', 'temperature') | round(0) | int }}°
+
+          &nbsp;
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Living room
+            heading_style: subtitle
+            icon: mdi:sofa
+          - &thermostat
+            type: thermostat
+            entity: climate.living_room
+            name: Heat pump
+            show_current_as_primary: true
+            grid_options:
+              columns: full
+            features:
+              - type: climate-hvac-modes
+                style: icons
+                hvac_modes: ["off", heat, cool, heat_cool, dry, fan_only]
+              - type: climate-fan-modes
+                style: dropdown
+          - &room
+            type: tile
+            entity: sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_temperature_p_2_1
+            name: Temperature
+            icon: mdi:thermometer
+            color: deep-orange
+            grid_options:
+              columns: 6
+              rows: 2
+            features:
+              - type: trend-graph
+                hours_to_show: 24
+          - <<: *room
+            entity: sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_relative_humidity_p_2_2
+            name: Humidity
+            icon: mdi:water-percent
+            color: light-blue
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Dining room
+            heading_style: subtitle
+            icon: mdi:table-chair
+          - <<: *thermostat
+            entity: climate.dining_room
+          # The heat pump's own sensor, in whole degrees.
+          - <<: *room
+            entity: sensor.dining_room_measured_value_of_room_temperature
+            grid_options:
+              columns: full
+              rows: 2
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hall
+            heading_style: subtitle
+            icon: mdi:door
+          - <<: *thermostat
+            entity: climate.hall
+          - <<: *room
+            entity: sensor.hall_measured_value_of_room_temperature
+            grid_options:
+              columns: full
+              rows: 2
+
+      # Goldair panel heater (Tuya Local): presets and power level are in
+      # its dialog. package jodie_heater.yaml turns it off at 07:00.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Jodie's room
+            heading_style: subtitle
+            icon: mdi:teddy-bear
+          - <<: *thermostat
+            entity: climate.heater_jodie
+            name: Heater
+            features:
+              - type: climate-hvac-modes
+                style: icons
+              - type: climate-preset-modes
+                style: icons
+          - <<: *room
+            entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
+          - <<: *room
+            entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_relative_humidity_p_2_2
+            name: Humidity
+            icon: mdi:water-percent
+            color: light-blue
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Bedroom
+            heading_style: subtitle
+            icon: mdi:bed
+          - <<: *room
+            entity: sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_temperature_p_2_1
+          - <<: *room
+            entity: sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_relative_humidity_p_2_2
+            name: Humidity
+            icon: mdi:water-percent
+            color: light-blue
+          # The Mi Smart Standing Fan 2 in the living room.
+          - type: tile
+            entity: fan.dmaker_sg_455242617_p18_s_2_fan
+            name: Standing fan
+            icon: mdi:fan
+            color: cyan
+            grid_options:
+              columns: full
+            features:
+              - type: fan-speed
+
+      # Energy per day, from the heat pumps' daily meters (utility_meter
+      # helpers). Hall's adapter reports none.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Heat pump energy
+            heading_style: subtitle
+            icon: mdi:heat-pump
+            badges:
+              - type: entity
+                entity: sensor.heat_pumps_today
+                icon: mdi:heat-pump
+                color: deep-orange
+                tap_action:
+                  action: none
+          - type: statistics-graph
+            chart_type: bar
+            period: day
+            days_to_show: 14
+            stat_types: [change]
+            hide_legend: false
+            grid_options:
+              columns: full
+            entities:
+              - entity: sensor.living_room_heat_pump_today
+                name: Living room
+              - entity: sensor.dining_room_heat_pump_today
+                name: Dining room
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Last 2 days
+            heading_style: subtitle
+            icon: mdi:chart-line
+          - type: history-graph
+            hours_to_show: 48
+            grid_options:
+              columns: full
+            entities:
+              - entity: sensor.cleargras_sg_blt_3_vopvdcqc4800_dk1_temperature_p_2_1
+                name: Living room
+              - entity: sensor.dining_room_measured_value_of_room_temperature
+                name: Dining room
+              - entity: sensor.hall_measured_value_of_room_temperature
+                name: Hall
+              - entity: sensor.miaomiaoc_sg_blt_1_1g3gbqbot4k00_t2_temperature_p_2_1
+                name: Jodie's room
+              - entity: sensor.miaomiaoc_sg_blt_1_1g3g5biit4k00_t2_temperature_p_2_1
+                name: Bedroom
+
   # The two Tapo C420 battery cameras behind their H200 hubs. Pictures are a
   # frame from each camera's latest clip (image.*_last_event, from the
   # tapo_events integration), so leaving this view open never wakes a
@@ -718,6 +1101,19 @@ views:
     path: cameras
     icon: mdi:cctv
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Cameras
+          Batteries: front door {{ states('sensor.camera_front_door_battery_2') }}% · garage {{ states('sensor.camera_garage_battery_2') }}%
+
+          &nbsp;
     max_columns: 1
     sections:
       - type: grid
@@ -948,24 +1344,38 @@ views:
                 - event.camera_front_door_detection
                 - event.camera_garage_detection
 
+  # Spotify on the Sonos speakers. Tap rooms to choose where it plays (any
+  # mix; "Everywhere" picks all three): config/packages/music.yaml groups
+  # them, and the player shows the group's coordinator, picked by
+  # sensor.music_speaker. To choose music, tap the player, then Browse
+  # media > pimooss. A volume slider appears for each chosen room. Jodie's
+  # Yoto is on the Kids view.
   - title: Music
     path: music
     icon: mdi:music
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Music
+          {%- set sp = states('sensor.music_speaker') %}
+          {% if is_state(sp, 'playing') %}Playing {{ state_attr(sp, 'media_title') | truncate(34, true, '…', 0) }}{% else %}Nothing playing{% endif %}
+
+          &nbsp;
     max_columns: 1
     sections:
-      # Spotify on the Sonos speakers. Tap rooms to choose where it plays (any
-      # mix; "Everywhere" picks all three): config/packages/music.yaml groups
-      # them, and the player shows the group's coordinator, picked by
-      # sensor.music_speaker. To choose music, tap the player, then Browse
-      # media > pimooss. A volume slider appears for each chosen room. Jodie's
-      # Yoto is on the Kids view.
       - type: grid
         cards:
           - type: heading
-            heading: Spotify
+            heading: Rooms
             heading_style: subtitle
-            icon: mdi:spotify
+            icon: mdi:speaker-multiple
             badges:
               - type: entity
                 entity: script.music_everywhere
@@ -976,7 +1386,7 @@ views:
                 tap_action:
                   action: perform-action
                   perform_action: script.music_everywhere
-          - &room
+          - &music_room
             type: tile
             entity: input_boolean.music_living_room
             name: Living room
@@ -990,46 +1400,44 @@ views:
             grid_options:
               columns: 4
               rows: 2
-          - <<: *room
+          - <<: *music_room
             entity: input_boolean.music_dining_room
             name: Dining room
-          - <<: *room
+          - <<: *music_room
             entity: input_boolean.music_hallway
             name: Hallway
-          # The time of day's three moods (config/packages/music.yaml): one
-          # tap plays the playlist each shows next, shuffled, in the rooms
-          # switched on above (the dining room if none), and moves that
-          # mood on to its next playlist.
-          - &mood
-            type: tile
-            entity: sensor.music_mood_1
-            color: deep-orange
-            tap_action: &play_mood_1
-              action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 1
-            icon_tap_action: *play_mood_1
+          # The time of day's three moods (config/packages/music.yaml): each
+          # shows the playlist it plays next, in the rooms switched on above.
+          - <<: *mood
+            vertical: false
+            hide_state: false
             grid_options:
               columns: full
           - <<: *mood
             entity: sensor.music_mood_2
             color: teal
-            tap_action: &play_mood_2
-              action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 2
+            vertical: false
+            hide_state: false
+            tap_action: *play_mood_2
             icon_tap_action: *play_mood_2
+            grid_options:
+              columns: full
           - <<: *mood
             entity: sensor.music_mood_3
             color: indigo
-            tap_action: &play_mood_3
-              action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 3
+            vertical: false
+            hide_state: false
+            tap_action: *play_mood_3
             icon_tap_action: *play_mood_3
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Now playing
+            heading_style: subtitle
+            icon: mdi:spotify
           - &player
             type: media-control
             entity: media_player.tv_room
@@ -1051,22 +1459,28 @@ views:
               - condition: state
                 entity: sensor.music_speaker
                 state: media_player.hallway
-          # One volume for the whole group playing (number.music_volume moves
-          # every speaker by the same amount), then one slider per room.
-          - type: tile
-            entity: number.music_volume
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Volume
+            heading_style: subtitle
+            icon: mdi:volume-high
+          # Each volume is a slider with - and + (5%) under it: the
+          # slider alone was hard to use by touch.
+          - <<: *music_volume
             name: All rooms
-            color: green
+            icon: mdi:volume-high
             tap_action:
               action: none
             icon_tap_action:
               action: none
-            features_position: inline
             features:
               - type: numeric-input
                 style: slider
-            grid_options:
-              columns: full
+              - type: numeric-input
+                style: buttons
+            visibility: []
           - &volume
             type: tile
             entity: media_player.tv_room
@@ -1080,6 +1494,8 @@ views:
             features_position: inline
             features:
               - type: media-player-volume-slider
+              - type: media-player-volume-buttons
+                step: 5
             grid_options:
               columns: full
             visibility:
@@ -1107,6 +1523,19 @@ views:
     path: kids
     icon: mdi:teddy-bear
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Kids
+          Yoto {{ 'playing ' ~ (state_attr('media_player.jodie', 'media_title') | truncate(24, true, '…', 0)) if is_state('media_player.jodie', 'playing') else states('media_player.jodie') }}{{ ' · battery ' ~ states('sensor.jodie_battery') ~ '%' if is_number(states('sensor.jodie_battery')) }}
+
+          &nbsp;
     max_columns: 1
     sections:
       # Jodie's Yoto player (Yoto integration, cloud). It only plays Yoto
@@ -1396,10 +1825,28 @@ views:
             entity: select.yoto_the_solar_system
             name: Solar System
 
-  - title: Power
-    path: power
+  # Energy: the house right now as a flow, the battery, then the Energy
+  # dashboard's own graphs (pick the day, week or month at the top; they
+  # read its long-term statistics) and live and daily figures per device.
+  # Read-only throughout.
+  - title: Energy
+    path: energy
     icon: mdi:solar-power-variant
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Energy
+          {%- macro kw(w) %}{{ '%.1f kW' | format(w / 1000) if w >= 1000 else '%d W' | format(w) }}{% endmacro %}
+          Solar {{ kw(states('sensor.alphaess_instantaneous_generation') | float(0)) }} · using {{ kw(states('sensor.alphaess_instantaneous_load') | float(0)) }} · battery {{ states('sensor.alphaess_instantaneous_battery_soc') | float(0) | round(0) | int }}%
+
+          &nbsp;
     max_columns: 1
     sections:
       - type: grid
@@ -1415,9 +1862,71 @@ views:
             grid_options:
               columns: full
 
-      # Live power per device, read-only. The EV charger is Evnex's metered
-      # power. The heat pumps report energy only, so theirs is a 1 h average
-      # derived from their kWh counters.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Battery
+            heading_style: subtitle
+            icon: mdi:home-battery
+          - type: tile
+            entity: sensor.home_battery
+            name: ~
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+            features:
+              - type: bar-gauge
+          - &stat
+            type: tile
+            entity: sensor.solar_left_today
+            name: Solar left today
+            icon: mdi:weather-sunset-down
+            color: amber
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *stat
+            entity: sensor.alphaess_self_consumption
+            name: Solar kept
+            icon: mdi:home-import-outline
+            color: green
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: History
+            heading_style: subtitle
+            icon: mdi:chart-bar
+          - type: energy-date-selection
+            grid_options:
+              columns: full
+          - type: energy-usage-graph
+            grid_options:
+              columns: full
+          - type: energy-solar-graph
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Where it went
+            heading_style: subtitle
+            icon: mdi:transit-connection-variant
+          - type: energy-distribution
+            link_dashboard: false
+            grid_options:
+              columns: full
+          - type: energy-devices-graph
+            grid_options:
+              columns: full
+
+      # Live power per device. The EV charger is Evnex's metered power. The
+      # heat pumps report energy only, so theirs is a 1 h average derived
+      # from their kWh counters.
       - type: grid
         cards:
           - type: heading
@@ -1436,12 +1945,12 @@ views:
               columns: 6
           - <<: *device
             entity: sensor.living_room_heat_pump_power
-            name: Living room heat pump
+            name: Living room
             icon: mdi:heat-pump
             color: deep-orange
           - <<: *device
             entity: sensor.dining_room_heat_pump_power
-            name: Dining room heat pump
+            name: Dining room
             icon: mdi:heat-pump
             color: deep-orange
           - <<: *device
@@ -1466,27 +1975,9 @@ views:
             color: amber
           - <<: *device
             entity: sensor.aquarium_pump_current_consumption
-            name: Aquarium pump
+            name: Aquarium
             icon: mdi:pump
             color: teal
-
-      - type: grid
-        cards:
-          - type: heading
-            heading: Last 24 hours
-            heading_style: subtitle
-            icon: mdi:chart-line
-          - type: history-graph
-            hours_to_show: 24
-            grid_options:
-              columns: full
-            entities:
-              - entity: sensor.alphaess_instantaneous_generation
-                name: Solar
-              - entity: sensor.alphaess_instantaneous_load
-                name: Using
-              - entity: sensor.alphaess_instantaneous_grid_i_o_total
-                name: Grid
 
       - type: grid
         cards:
@@ -1548,6 +2039,19 @@ views:
     path: solar-charging
     icon: mdi:solar-power
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Solar charging
+          {{ states('sensor.car_charger') }}{{ ' from solar' if is_state('input_boolean.car_solar_charging', 'on') }} · {{ states('sensor.solar_left_today') }} kWh sun left
+
+          &nbsp;
     max_columns: 1
     sections:
       - type: grid
@@ -1841,6 +2345,20 @@ views:
     path: quakes
     icon: mdi:pulse
     type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # Quakes
+          {%- set n = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | list | count %}
+          {{ n }} felt quake{{ 's' if n != 1 }} this week · Wellington MMI {{ states('sensor.wellington_shaking') }}
+
+          &nbsp;
     max_columns: 1
     sections:
       - type: grid
@@ -1878,3 +2396,145 @@ views:
               {{ relative_time(q.attributes.time | as_datetime) }} ago · {{ q.attributes.depth | round(0) | int }} km deep · {{ q.state | float(0) | round(0) | int }} km away
               {% else %}No felt quakes within 300 km this week.
               {%- endfor %}
+
+  # The house's plumbing: this phone (the HA companion app on it), every
+  # battery-powered device, backups and the Pi.
+  - title: System
+    path: system
+    icon: mdi:cog-outline
+    type: sections
+    theme: South Coast
+    background: var(--wall-phone-background)
+    # The title over the theme's panorama, with one live line.
+    header:
+      layout: responsive
+      card:
+        type: markdown
+        text_only: true
+        content: |
+          # System
+          {%- set n = states('sensor.low_batteries') | int(0) %}
+          {{ n ~ ' low batteries' if n else 'Batteries fine' }} · backup {{ relative_time(states('sensor.backup_last_successful_automatic_backup') | as_datetime) }} ago
+
+          &nbsp;
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: This phone
+            heading_style: subtitle
+            icon: mdi:cellphone
+          - &info
+            type: tile
+            entity: sensor.wallphone_notes_9_battery_level
+            name: Battery
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *info
+            entity: sensor.wallphone_notes_9_battery_state
+            name: Power
+            icon: mdi:power-plug-battery
+          - <<: *info
+            entity: sensor.wallphone_notes_9_battery_temperature
+            name: Battery temperature
+            color: deep-orange
+          - <<: *info
+            entity: sensor.wallphone_notes_9_battery_health
+            name: Battery health
+            icon: mdi:battery-heart-variant
+          - <<: *info
+            entity: sensor.wallphone_notes_9_wi_fi_signal_strength
+            name: Wi-Fi
+            color: blue
+          - <<: *info
+            entity: sensor.wallphone_notes_9_last_reboot
+            name: Last restart
+            icon: mdi:restart
+            color: indigo
+          - type: history-graph
+            hours_to_show: 48
+            grid_options:
+              columns: full
+            entities:
+              - entity: sensor.wallphone_notes_9_battery_level
+                name: Battery
+
+      # Every battery-powered device, lowest first, so the next one to
+      # replace is at the top (under 20% in bold: sensor.low_batteries, in
+      # config/packages/ipad.yaml).
+      - type: grid
+        cards:
+          - type: heading
+            heading: Batteries
+            heading_style: subtitle
+            icon: mdi:battery-heart-variant
+          - type: markdown
+            text_only: true
+            grid_options:
+              columns: full
+            content: |
+              {%- set ns = namespace(out=[]) %}
+              {%- for s in states.sensor | selectattr('attributes.device_class', 'defined') | selectattr('attributes.device_class', 'eq', 'battery') | rejectattr('entity_id', 'search', 'home_battery|alphaess|plop|wallphone|ipad|iphone') %}
+              {%- set ns.out = ns.out + [{'name': device_attr(s.entity_id, 'name_by_user') or device_attr(s.entity_id, 'name') or s.name, 'level': s.state | float(-1)}] %}
+              {%- endfor %}
+              {%- for d in ns.out | sort(attribute='level') %}
+              {%- set l = d.level %}
+              {%- set icon = 'battery-off-outline' if l < 0 else 'battery-alert-variant-outline' if l < 20 else 'battery' if l >= 95 else 'battery-' ~ ((l / 10) | int * 10) %}
+              {%- set text = d.name | trim ~ ' · ' ~ (l | int ~ '%' if l >= 0 else 'not reporting') %}
+              <ha-icon icon="mdi:{{ icon }}"></ha-icon> {{ '**' ~ text ~ '**' if 0 <= l < 20 else text }}<br>
+              {%- endfor %}
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Home Assistant
+            heading_style: subtitle
+            icon: mdi:home-assistant
+          - &system
+            type: tile
+            entity: sensor.backup_last_successful_automatic_backup
+            name: Last backup
+            icon: mdi:cloud-check-outline
+            color: green
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+          - <<: *system
+            entity: sensor.backup_next_scheduled_automatic_backup
+            name: Next backup
+            icon: mdi:cloud-clock-outline
+            color: blue
+          # The Pi's power supply (rpi_power): on means it saw under-voltage.
+          - <<: *system
+            entity: binary_sensor.raspberry_pi_power_status
+            name: Pi power
+            icon: mdi:raspberry-pi
+            color: red
+          - <<: *system
+            entity: sensor.alphaess_ems_status
+            name: Solar inverter
+            icon: mdi:solar-panel
+            color: amber
+          - &ink
+            type: tile
+            entity: sensor.hp_envy_5000_series_black_ink
+            name: Black ink
+            icon: mdi:printer
+            color: blue-grey
+            tap_action:
+              action: none
+            grid_options:
+              columns: 6
+              rows: 2
+            features:
+              - type: bar-gauge
+          - <<: *ink
+            entity: sensor.hp_envy_5000_series_tri_color_ink
+            name: Colour ink
+            icon: mdi:palette
+            color: pink

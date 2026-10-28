@@ -41,7 +41,8 @@ views:
           # {{ now().strftime('%H:%M') }}
           {{ now().strftime('%A %-d %B') }} · <ha-icon icon="mdi:weather-sunset-{{ 'down' if up else 'up' }}"></ha-icon> {{ as_timestamp(state_attr('sun.sun', 'next_setting' if up else 'next_rising')) | timestamp_custom('%H:%M') }}
     # Badges that only show while something needs a look. No one's
-    # home/away badges: they sat over the panorama's whale.
+    # home/away badges and no low batteries (the System tab lists those):
+    # they sat over the panorama's whale for hours or days.
     badges:
       - &alert_badge
         type: entity
@@ -88,19 +89,6 @@ views:
           - condition: state
             entity: vacuum.rockrobo_sg_64457686_v1
             state: error
-      - <<: *alert_badge
-        entity: sensor.low_batteries
-        name: Low batteries
-        show_state: true
-        icon: mdi:battery-alert-variant-outline
-        color: amber
-        tap_action:
-          action: navigate
-          navigation_path: /ipad-home/system
-        visibility:
-          - condition: numeric_state
-            entity: sensor.low_batteries
-            above: 0
       - <<: *alert_badge
         entity: binary_sensor.raspberry_pi_power_status
         name: Pi under-voltage
@@ -1602,7 +1590,7 @@ views:
         text_only: true
         content: |
           # Kids
-          Jodie's Yoto {{ 'is playing ' ~ state_attr('media_player.jodie', 'media_title') if is_state('media_player.jodie', 'playing') else 'is ' ~ states('media_player.jodie') }} · battery {{ states('sensor.jodie_battery') }}%
+          Jodie's Yoto {{ 'is playing ' ~ state_attr('media_player.jodie', 'media_title') if is_state('media_player.jodie', 'playing') else 'is ' ~ states('media_player.jodie') }}{{ ' · battery ' ~ states('sensor.jodie_battery') ~ '%' if is_number(states('sensor.jodie_battery')) }}
 
           &nbsp;
     max_columns: 3
@@ -2318,7 +2306,7 @@ views:
                 name: Battery
 
       # Every battery-powered device, lowest first, so the next one to
-      # replace is at the top (under 20% in bold: those make the Home badge).
+      # replace is at the top (under 20% in bold: sensor.low_batteries).
       - type: grid
         cards:
           - type: heading

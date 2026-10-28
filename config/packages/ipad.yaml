@@ -23,7 +23,7 @@ template:
           {% else %}day{% endif %}
 
   # Battery-powered sensors, night lights and cameras under 20%, for the
-  # Home view's badge and the System view. Phones, the iPad and the house
+  # System views' headers. Phones, the iPad and the house
   # battery are charged some other way, so they're left out.
   - sensor:
       - name: Low batteries
