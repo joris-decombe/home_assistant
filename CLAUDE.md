@@ -189,15 +189,20 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.
-  `config/packages/car_solar_charging.yaml` turns on the charger's *Charge
-  now* when the battery is 98%+ and solar is still in surplus
+  `config/packages/car_solar_charging.yaml` charges the car first and the
+  home battery after: it turns on the charger's *Charge now* when solar is
+  in surplus and the battery is 15 points above
+  `sensor.car_charging_battery_floor`, or 98% at most
   (`binary_sensor.solar_surplus`). It turns it back off at 1 kW of grid
-  import, or when the battery reaches `sensor.car_charging_battery_floor`:
-  how low it can go and still refill before the sun drops below the
-  house's use (it counts only the sun above 1 kW; aiming for sunset
-  stopped the car too early and exported the refill). It and
-  `sensor.solar_left_today` share a fitted sun curve × met.no's hourly
-  conditions, no solar forecast integration. `input_boolean.car_solar_charging`
+  import, or when the battery reaches that floor: how low it can go and
+  still refill before the sun drops below the house's use (it counts only
+  the sun above 1 kW; aiming for sunset stopped the car too early and
+  exported the refill). The user chose car first knowing it costs some
+  evening import (~0.7 kWh a day) for an earlier charge: starting at 98%
+  already caught nearly all the export. It and `sensor.solar_left_today`
+  share a fitted sun curve × met.no's hourly conditions (factors measured
+  against the panels in November 2026), no solar forecast integration.
+  `input_boolean.car_solar_charging`
   marks a session it started, so it never stops a Charge now turned on by hand.
   All three dashboards have a **Solar charging** tab for it (wall phone
   first, then copied; the chart's dashed estimate repeats the package's solar
