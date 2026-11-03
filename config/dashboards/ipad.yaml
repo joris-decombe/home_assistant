@@ -1139,6 +1139,7 @@ views:
               {%- set surplus = -(states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0)
                                   + states('sensor.alphaess_instantaneous_battery_i_o') | float(0)) %}
               {%- set floor = states('sensor.car_charging_battery_floor') | float(100) %}
+              {%- set start = [floor + 15, 98] | min %}
               {%- set plugged = is_state('binary_sensor.garage_joris_home_charger_plugged_in', 'on') %}
               {%- set w = '%.1f kW' | format(surplus | abs / 1000) if surplus | abs >= 1000 else '%d W' | format(surplus | abs) %}
               {%- macro check(ok) %}{{ '✅' if ok else '⬜' }}{% endmacro %}
@@ -1151,7 +1152,7 @@ views:
               Turned on by hand or by the app, so solar charging leaves it alone.
               {%- else %}
               ## {{ '🔌 Waiting for spare solar' if plugged else '🚗 Car not plugged in' }}
-              {{ check(soc >= 98) }} Battery at 98%+ · **{{ soc | int }}%**<br>
+              {{ check(soc >= start) }} Battery at {{ start | int }}%+ · **{{ soc | int }}%**<br>
               {{ check(surplus > 500) }} 500 W+ of solar to spare · **{{ w if surplus > 0 else 'none' }}**<br>
               {{ check(floor < 95) }} Sun left to refill the battery · **down to {{ floor | int }}%**<br>
               {{ check(plugged) }} Car plugged in
@@ -1370,9 +1371,9 @@ views:
                   const sun = hass.states['sun.sun'];
                   const fc = hass.states['sensor.hourly_forecast'];
                   if (!sun || sun.state !== 'above_horizon' || !fc) return [];
-                  const factor = {sunny: 1, windy: 1, partlycloudy: 0.6, 'windy-variant': 0.6,
-                    cloudy: 0.25, fog: 0.2, rainy: 0.15, lightning: 0.15, pouring: 0.1,
-                    'lightning-rainy': 0.1, hail: 0.1, snowy: 0.1, 'snowy-rainy': 0.1};
+                  const factor = {sunny: 1, windy: 1, partlycloudy: 0.85, 'windy-variant': 0.85,
+                    cloudy: 0.5, fog: 0.4, rainy: 0.4, lightning: 0.4, pouring: 0.25,
+                    'lightning-rainy': 0.25, hail: 0.25, snowy: 0.25, 'snowy-rainy': 0.25};
                   const dusk = new Date(sun.attributes.next_setting).getTime();
                   let rise = new Date(sun.attributes.next_rising).getTime();
                   if (rise > dusk) rise -= 86400000;
