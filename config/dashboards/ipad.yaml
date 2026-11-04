@@ -143,6 +143,7 @@ views:
               {%- set icons = {'clear-night': 'weather-night', 'cloudy': 'weather-cloudy', 'exceptional': 'alert-circle-outline', 'fog': 'weather-fog', 'hail': 'weather-hail', 'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'partlycloudy': 'weather-partly-cloudy', 'pouring': 'weather-pouring', 'rainy': 'weather-rainy', 'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'sunny': 'weather-sunny', 'windy': 'weather-windy', 'windy-variant': 'weather-windy-variant'} %}
               {%- macro sector(b) %}{{ ((b | float(0) + 22.5) // 45) | int % 8 }}{% endmacro %}
               {%- macro when(dt) %}{% set l = dt | as_datetime | as_local %}{{ l.strftime('%H:%M') if l.date() == now().date() else l.strftime('%a %H:%M') }}{% endmacro %}
+              {%- if has_value('weather.forecast_home') %}
               {%- set w = states.weather.forecast_home.attributes %}
               {%- set i0 = sector(w.wind_bearing) | int %}
               {%- set ns = namespace(turn=none, peak=0, peak_t=none) %}
@@ -155,6 +156,9 @@ views:
               ### <ha-icon icon="mdi:{{ icons.get(states('weather.forecast_home'), 'weather-cloudy') }}"></ha-icon> {{ w.temperature | round(0) | int }}° {{ states('weather.forecast_home') | replace('partlycloudy', 'partly cloudy') | replace('clear-night', 'clear') | replace('-', ' ') | capitalize }} · <ha-icon icon="mdi:weather-windy"></ha-icon> {{ dirs[i0] }} {{ w.wind_speed | float(0) | round(0) | int }} km/h
               {% if ns.turn %}Turning **{{ dirs[sector(ns.turn.wind_bearing) | int] }}** ~{{ when(ns.turn.datetime) }}{% else %}Steady {{ dirs[i0] }}{% endif %}
               {%- if ns.peak_t %} · peak **{{ ns.peak | round(0) | int }} km/h** {{ when(ns.peak_t) }}{% endif %} · {{ '%.1f mm rain' | format(rain) if rain >= 0.1 else 'dry' }} next 12 h
+              {%- else %}
+              ### <ha-icon icon="mdi:weather-cloudy-alert"></ha-icon> No forecast from met.no
+              {%- endif %}
           # Last 3 h (grey band, dashed: what the weather entity recorded) and
           # the next 12 h: a row of condition icons along the top every 2 h,
           # wind (blue, km/h, left axis) labelled with its direction,

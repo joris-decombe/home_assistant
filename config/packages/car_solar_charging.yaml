@@ -82,7 +82,9 @@ template:
               {% set b = [start + 3600, dusk] | min %}
               {% if b > a %}
                 {% set x = ((a + b) / 2 - rise) / (dusk - rise) %}
-                {% set ns.kwh = ns.kwh + peak * ((pi * x) | sin) ** 1.5
+                {# At sunset next_setting moves to tomorrow minutes before sun.sun turns below_horizon, so x can go below 0 (and a negative sine to the 1.5 is complex). #}
+                {% set s = (pi * x) | sin if 0 < x < 1 else 0 %}
+                {% set ns.kwh = ns.kwh + peak * s ** 1.5
                                 * factor.get(f.condition, 0.5) * (b - a) / 3600 %}
               {% endif %}
             {% endfor %}
@@ -117,7 +119,8 @@ template:
               {% set b = [start + 3600, dusk] | min %}
               {% if b > a %}
                 {% set x = ((a + b) / 2 - rise) / (dusk - rise) %}
-                {% set kw = peak * ((pi * x) | sin) ** 1.5 * factor.get(f.condition, 0.5) %}
+                {% set s = (pi * x) | sin if 0 < x < 1 else 0 %}
+                {% set kw = peak * s ** 1.5 * factor.get(f.condition, 0.5) %}
                 {% set ns.spare = ns.spare + [kw - house, 0] | max * (b - a) / 3600 %}
               {% endif %}
             {% endfor %}
