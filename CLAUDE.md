@@ -14,7 +14,8 @@ the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
   shut down, as a fallback (`AutomaticStartAction` = Nothing).
 - `config/configuration.yaml` and `docker-compose.yml` are leftovers from a
   scratch Docker container (port 8124). The Pi's real `configuration.yaml`
-  differs: it loads `packages/` and has the recorder tuning. Edit it on the Pi.
+  differs: it loads `packages/`, has the recorder tuning and lists a trimmed
+  `default_config` (see Pi 3 constraints). Edit it on the Pi.
 - `config/dashboards/overview.yaml` is the source of truth for the main
   Overview dashboard (pushed with no `url_path`). Its wind chart is a copy of
   the wall phone's: change `wall_phone.yaml` first, then copy it across (its
@@ -63,7 +64,8 @@ they live in `.storage/http`. Change them with the WebSocket call
   (`claude mcp add`, local scope), behind a Cloudflare Access service token. See
   `docs/remote-access.md`.
 - Use the WebSocket API (`/api/websocket`) for registries, config entries, energy
-  prefs, HACS (`hacs/repository/download`) and Lovelace. Supervisor endpoints
+  prefs, HACS (`hacs/repository/download`, once its entry is enabled) and
+  Lovelace. Supervisor endpoints
   (add-ons, backups, `/core/restart`) go through WebSocket `supervisor/api`.
   REST `/api/hassio/*` returns 401 with this token.
 - `POST /api/template` is the quickest way to check dashboard Jinja.
@@ -71,16 +73,43 @@ they live in `.storage/http`. Change them with the WebSocket call
 
 ## Pi 3 constraints
 
-1 GB RAM. It boots from the SD card, but since 2026-10-16 the data partition
-(`/mnt/data`: HA config, add-ons, database and the 1 GB swapfile) lives on a 480 GB
-SSD (HPE VK0480GD) in a self-powered VIA USB-SATA enclosure, moved with
-Supervisor's `os/datadisk/move`. The SD card's old copy is left as
-`hassos-data-old`. Swap sits around 300–550 MB. If the enclosure's power comes
-on after the Pi boots, the adapter shows a 0-byte "VirtualDisk" and HA won't
-start; replug it with the enclosure powered. Keep add-ons and integrations lean: Matter Server
-was removed (no devices), and the recorder uses `commit_interval: 30`,
-`purge_keep_days: 7`. **Run `sync` after writing files**: a power cut once
-truncated a freshly installed HACS integration to empty files. The `rpi_power`
+1 GB RAM. It boots from the SD card, and the data partition (`/mnt/data`: HA
+config, add-ons and database) is **on the SD card again**
+(`mmcblk0p8`). From 2026-10-16 it lived on a 480 GB SSD (HPE VK0480GD) on a
+VIA USB-SATA adapter (no enclosure), moved with Supervisor's
+`os/datadisk/move`. On 2026-11-07 the SSD stopped being seen: the adapter
+enumerates (`2109:0700`) but reports a 0-byte "VirtualDisk", on the Pi and on
+a Windows PC alike, so the adapter or the SSD has failed. HAOS mounts the
+partition labelled `hassos-data` and waits forever if there is none; the SD
+card's old copy (`hassos-data-old`) was relabelled with `e2label` and restored
+from the R2 backup of 2026-11-06 03:30. Before plugging the SSD back in,
+relabel one of the two, or HAOS finds two data disks.
+
+**Memory.** HA needs about 500 MB of swap. On the SD card that froze the whole
+Pi within minutes (even SSH), so since 2026-11-07:
+- Swap is **zram** (768 MB, zstd, in compressed RAM), set up at boot by
+  `/etc/udev/rules.d/99-zram-swap.rules` (its `swapon` goes through
+  `systemd-run`: udev workers aren't allowed that syscall, and swap silently
+  stays off). Check with `swapon --show`. The SD swapfile is off
+  (`SWAPSIZE=0` in `/etc/default/haos-swapfile`), and
+  `/etc/sysctl.d/99-zram-swap.conf` sets `vm.swappiness = 100` (HAOS's
+  default of 1 drops file cache and re-reads it from the card instead). If
+  memory runs out, the kernel kills HA and the Supervisor restarts it. Never put
+  swap back on the card.
+- The Pi's `configuration.yaml` lists `default_config`'s integrations itself,
+  minus bluetooth, cloud, go2rtc, assist_pipeline, usage_prediction, usb and
+  homeassistant_alerts. `stream` stays (Tapo Control needs it) and so does
+  `conversation` (the MCP server needs it).
+- Disabled config entries: **HACS** (enable it to install or update cards,
+  then disable it again), go2rtc, Apple TV and the Deco router's UPnP. The
+  apexcharts card loads from `/local/community/apexcharts-card/`, not
+  `/hacsfiles/`, so it works with HACS off.
+- Matter Server came back, stopped, with the old SD data.
+- The originals are in `/config/backup-memtrim-20261107/`.
+
+The recorder uses `commit_interval: 30` and `purge_keep_days: 7`. **Run `sync`
+after writing files**: a power cut once truncated a freshly installed HACS
+integration to empty files. The `rpi_power`
 "under-voltage" repair is a sticky since-boot flag. One event at power-on is
 normal; repeated events while running mean a power problem.
 
@@ -151,6 +180,9 @@ The wind chart is `custom:apexcharts-card` (HACS). Its `EVAL:` label formatters
 index `sensor.hourly_forecast` by point order. You can't log in to HA from the
 browser tool, so test card changes in a local page: serve the card JS and a fake
 `hass` object at 412 px. After installing a HACS card, the phone needs a reload.
+HACS is disabled to save memory: enable its entry to install or update a card,
+point the card's dashboard resource at `/local/community/…`, then disable HACS
+again.
 
 ## Kitchen iPad
 
