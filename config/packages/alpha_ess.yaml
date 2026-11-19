@@ -4,6 +4,12 @@
 # entities then stay unavailable until the entry is reloaded. Fixed upstream in
 # the 0.9.0 betas (library 0.0.21 raises, setup retries); this watchdog covers
 # it until then, and any other way the entry gets stuck.
+#
+# A reload can't fix a blocked IP: the developer app on open.alphaess.com
+# only accepts calls from the public IPs on its allowlist, and anything else
+# gets error 6009 ("request timestamp is not within the validity period"),
+# which looks like a clock problem but isn't. Add the new IP there after an
+# ISP or router change.
 # Copy to /config/packages/ and reload automations.
 
 automation:

@@ -4,8 +4,8 @@ Two **Tapo C420** battery cameras, each paired to its own **H200** hub:
 
 | Camera | Hub | Hub IP |
 |---|---|---|
-| Front Door | Tapo Hub Maison | 192.168.68.57 |
-| Garage | Tapo Hub Garage | 192.168.68.97 |
+| Front Door | Tapo Hub Maison | 192.168.168.57 |
+| Garage | Tapo Hub Garage | 192.168.168.97 |
 
 The cameras never talk to the LAN directly: everything goes through the hub,
 which keeps the recordings on its microSD card. The hubs expose only TCP 443
@@ -99,7 +99,7 @@ Deploy changes like a package, then restart (HA doesn't reload Python
 modules):
 
 ```bash
-cd config/custom_components && tar cf - tapo_events | ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.68.68 'cd /mnt/data/supervisor/homeassistant/custom_components && tar xf - && sync'
+cd config/custom_components && tar cf - tapo_events | ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.168.68 'cd /mnt/data/supervisor/homeassistant/custom_components && tar xf - && sync'
 ```
 
 Debug logs: call `logger.set_level` with `custom_components.tapo_events: debug`.

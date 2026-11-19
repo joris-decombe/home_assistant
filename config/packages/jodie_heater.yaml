@@ -1,4 +1,4 @@
-# Jodie's Goldair GPPH panel heater (Tuya Local, local at 192.168.68.54).
+# Jodie's Goldair GPPH panel heater (Tuya Local, local at 192.168.168.54).
 # It used to switch itself off in the morning through a schedule in the
 # Goldair app; that went when it moved to Smart Life, so HA does it now.
 # Copy to /config/packages/ and reload automations.

@@ -3,7 +3,7 @@
 Configuration, dashboards and docs for our Home Assistant, which runs as
 **Home Assistant OS on a Raspberry Pi 3**:
 
-- At home: `http://192.168.68.68:8123`
+- At home: `http://192.168.168.68:8123`
 - Away: `https://home.dx2-66.com` (Cloudflare Tunnel behind Cloudflare Access;
   see [docs/remote-access.md](docs/remote-access.md))
 - Security state and to-dos: [docs/security.md](docs/security.md)

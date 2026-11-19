@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Configuration, scripts and docs for a Home Assistant install. **The repo is not
 the live config.** Home Assistant OS runs on a **Raspberry Pi 3** at
-`192.168.68.68` (port 8123, DHCP-reserved). Changes reach it only by being pushed
+`192.168.168.68` (port 8123, DHCP-reserved). Changes reach it only by being pushed
 or copied (see below). Most of HA's state lives on the Pi and is managed through
 the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 
@@ -41,7 +41,7 @@ main **Overview** dashboard, which is only right for
 `homeassistant: packages: !include_dir_named packages`): copy the file over host
 SSH, run `sync`, validate, then reload (no restart needed for templates or scripts):
 ```bash
-ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.68.68 'cat > /mnt/data/supervisor/homeassistant/packages/wall_phone.yaml && sync' < config/packages/wall_phone.yaml
+ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.168.68 'cat > /mnt/data/supervisor/homeassistant/packages/wall_phone.yaml && sync' < config/packages/wall_phone.yaml
 # then POST /api/config/core/check_config, and /api/services/template/reload (and script/reload)
 ```
 On the HAOS host, `/config` is `/mnt/data/supervisor/homeassistant`.
@@ -191,10 +191,13 @@ mode, as the local-only, non-admin `ipad` user, on `ipad-home`. Its theme is
 **South Coast** (`config/themes/south_coast.yaml`, with SVG pictures in
 `config/www/ipad/` from `scripts/coast_svg.py`); the theme's 16 px column gaps
 are what make three columns fit. `config/packages/ipad.yaml` drives brightness
-and the screensaver by phase of day through `notify.mobile_app_ipad`
+and the screensaver by phase of day (awake from 05:10 on weekdays) through `notify.mobile_app_ipad`
 (`kiosk_*` messages, which only reach the app in the foreground), and will
-charge it from `switch.ipad_charger` between 30 and 80% once that plug
+charge it from `switch.ipad_charger` between 40 and 60% once that plug
 exists. Details and the iPad's own settings: `docs/ipad.md`.
+The plug bought for it, a P110(AU) at `.98`, has TPAP firmware, which
+python-kasa (HA's TP-Link integration) can't control yet; `docs/ipad.md`
+has the options. The other five Tapo plugs are P110M (KLAP) and work.
 
 ## Devices and integrations worth knowing
 
@@ -255,6 +258,14 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   sensor has been unavailable for 15 minutes (at most hourly). Upstream fixes
   this in 0.9.0; wait for the stable release, as the betas change how charge
   schedules are written.
+  Its developer app on `https://open.alphaess.com` has an **IP allowlist**:
+  calls from any other public IP get error **6009** ("The request timestamp
+  is not within the validity period"; a real clock error is 6006). After an
+  ISP or router change, add the new egress IP there, then reload the entry.
+  Find it from the Pi with
+  `docker exec homeassistant python3 -c "import urllib.request;print(urllib.request.urlopen('https://1.1.1.1/cdn-cgi/trace').read().decode())"`
+  (the `ip=` line). Since 2026-11-19 the allowlist also holds the egress IP
+  of the ISP-outage stopgap (see the user's `ics-outage-router` notes).
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Tapo cameras:** two C420 battery cameras behind H200 hubs (`.57` house,
@@ -266,7 +277,7 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   errors). Never print or store the Tapo password outside HA. See
   `docs/tapo-cameras.md`.
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
-  Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.68.68:8123`
+  Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.168.68:8123`
   stays the address for the wall phone, MCP and the Xiaomi sign-in.
 
 ## Raspberry Pi image builder

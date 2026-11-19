@@ -69,6 +69,7 @@ commands (`notify.mobile_app_ipad`, message `kiosk_*`):
 | day | sun up | 60% | dim, 15% |
 | evening | sunset to 22:30 | 35% | dim, 6% |
 | night | 22:30 to 06:30 | 20% | blank |
+| morning | weekdays 05:10 to 06:30 | 40% | kept off |
 | away | Joris and Pauline both out | 35% | blank, at once |
 | quake | Wellington shaking (MMI 3+) | 100% | dismissed |
 
@@ -77,14 +78,41 @@ it lights the screen up behind it), so it's applied on waking. It also wakes
 the screen when someone comes home (not at night), goes back to Home 30 s
 after the screensaver starts, and reloads the page at 04:00.
 
+On weekday mornings (Monday to Friday, public holidays included: there's
+no workday sensor) the screen wakes at 05:10 for an early start, and the
+package dismisses the screensaver each time it comes up until 06:30.
+After that the normal day or evening settings apply.
+At night the screen goes black a minute after the camera last saw someone
+(`kiosk_show_screensaver`), without waiting for the iPad's own timer, which
+counts from the last touch.
+
 An LCD doesn't burn in, so the point is the backlight and heat: a cooler iPad
 on a charger ages its battery more slowly. The bigger problem is that the
 9th gen has no 80% charge limit (only A16/M-series iPads do), so on a charger
-it sits at 100% and the battery will eventually swell. The package charges
-it from a smart plug between 30 and 80% once there is one: name the plug's
-switch **`switch.ipad_charger`** and the automation starts working (it
-charges if the battery stops reporting, so the iPad never runs flat). Until
-then it does nothing.
+it sits at 100% and the battery will eventually swell.
+
+### Charging from a smart plug
+
+The package keeps the battery between **40 and 60%** from a smart plug whose
+switch is **`switch.ipad_charger`**: a lithium battery lasts longest cycling
+shallowly around half charge. That's about two hours on battery, then 40
+minutes charging. Every 10 minutes it checks the plug against the battery
+(a missed trigger, a plug switched by hand, a power cut). If the battery
+stops reporting (unavailable, or unchanged for 6 hours), it charges, so the
+iPad never runs flat, and if the plug is on for 20 minutes while the iPad
+says *Not Charging*, it notifies `mobile_app_plop`.
+
+If HA is down the plug stays as it is, so give it a backstop in the Tapo
+app: a schedule that turns it **on** every day at 03:00. HA turns it back off
+at 60%. Without a plug the automation does nothing.
+
+The plug bought for it in November 2026 is a **P110(AU)** at
+`192.168.168.98`, not a P110M like the others. Its firmware uses TP-Link's
+newer **TPAP** encryption, which python-kasa 0.12.0 (HA 2026.11) can't speak
+yet ([python-kasa#1590](https://github.com/python-kasa/python-kasa/issues/1590)),
+so the TP-Link integration ignores it, and a P110 has no Matter. Turning on
+*Third-Party Compatibility* in the Tapo app (Me → Third-Party Services) is
+reported to switch a plug back to KLAP; otherwise swap it for a P110M.
 
 ## Setting up the iPad
 
@@ -99,7 +127,7 @@ then it does nothing.
    **2 fps** (default 8; plenty for someone walking up, at a quarter of the
    work), threshold 40%, clear delay 15 s. On the same screen, turn on
    **Battery Level** and **Battery State**: while they're off in the app it
-   sends them as unavailable, so System shows no battery and the 30–80%
+   sends them as unavailable, so System shows no battery and the 40–60%
    charging can't work.
 3. iPad Settings → Display & Brightness → Appearance **Automatic** (the theme
    goes dark at sunset), **Auto-Brightness** off under Accessibility →
