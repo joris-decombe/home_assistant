@@ -83,7 +83,9 @@ automation:
       - variables:
           phase: "{{ states('sensor.ipad_kiosk_phase') }}"
           settings:
-            day: {brightness: 60, mode: dim, dim: 15}
+            # Day (sun up, someone home): the screensaver dims to the same
+            # 60%, so the screen stays lit and still goes back to Home when idle.
+            day: {brightness: 60, mode: dim, dim: 60}
             evening: {brightness: 35, mode: dim, dim: 6}
             night: {brightness: 20, mode: blank, dim: 0}
             morning: {brightness: 40, mode: dim, dim: 15}

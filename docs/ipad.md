@@ -66,7 +66,7 @@ commands (`notify.mobile_app_ipad`, message `kiosk_*`):
 
 | Phase (`sensor.ipad_kiosk_phase`) | When | Brightness | Screensaver |
 |---|---|---|---|
-| day | sun up | 60% | dim, 15% |
+| day | sun up, someone home | 60% | dim, 60% (stays lit) |
 | evening | sunset to 22:30 | 35% | dim, 6% |
 | night | 22:30 to 06:30 | 20% | blank |
 | morning | weekdays 05:10 to 06:30 | 40% | kept off |
