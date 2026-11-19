@@ -160,10 +160,9 @@ automation:
         data:
           message: kiosk_hide_screensaver
 
-  # Night: black after a minute with nobody in front of the camera. The
-  # iPad's own 2-minute timer counts from the last touch and has let the
-  # screen stay lit for 6 minutes after camera motion woke it; this doesn't
-  # wait for it.
+  # Night: black after 5 minutes with nobody in front of the camera. The
+  # iPad's own 2-minute timer doesn't always fire after camera motion wakes
+  # it (it stayed lit 6 minutes at a time), so this is the backstop.
   - id: ipad_kiosk_night_black
     alias: iPad goes black at night
     mode: single
@@ -171,11 +170,11 @@ automation:
       - trigger: state
         entity_id: binary_sensor.ipad_kiosk_screensaver
         to: "off"
-        for: "00:01:00"
+        for: "00:05:00"
       - trigger: state
         entity_id: binary_sensor.ipad_camera_motion
         to: "off"
-        for: "00:01:00"
+        for: "00:05:00"
     conditions:
       - condition: state
         entity_id: sensor.ipad_kiosk_phase
@@ -183,11 +182,11 @@ automation:
       - condition: state
         entity_id: binary_sensor.ipad_kiosk_screensaver
         state: "off"
-        for: "00:01:00"
+        for: "00:05:00"
       - condition: state
         entity_id: binary_sensor.ipad_camera_motion
         state: "off"
-        for: "00:01:00"
+        for: "00:05:00"
     actions:
       - action: notify.mobile_app_ipad
         data:

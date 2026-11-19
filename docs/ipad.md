@@ -82,7 +82,7 @@ On weekday mornings (Monday to Friday, public holidays included: there's
 no workday sensor) the screen wakes at 05:10 for an early start, and the
 package dismisses the screensaver each time it comes up until 06:30.
 After that the normal day or evening settings apply.
-At night the screen goes black a minute after the camera last saw someone
+At night the screen goes black 5 minutes after the camera last saw someone
 (`kiosk_show_screensaver`), without waiting for the iPad's own timer, which
 counts from the last touch.
 
