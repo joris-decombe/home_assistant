@@ -120,6 +120,15 @@ rest_command:
       {% set totals = state_attr('sensor.public_stats_day', 'totals') %}
       {% set totals = totals | from_json if totals is string else totals %}
       {{ dict(totals, day=states('sensor.public_stats_day')) | to_json }}
+  # One past day from the backfill script.
+  public_stats_backfill:
+    url: https://power.dx2-66.com/push
+    method: post
+    headers:
+      authorization: !secret public_stats_push_auth
+    content_type: application/json
+    timeout: 30
+    payload: "{{ day_totals | to_json }}"
 
 automation:
   - id: public_stats_push
@@ -154,3 +163,138 @@ automation:
               entity_id: input_text.public_stats_pushed
             data:
               value: "{{ states('sensor.public_stats_day') }}"
+
+  - id: public_stats_backfill
+    alias: Backfill power.dx2-66.com
+    description: Sends past days the page is missing, from the last two weeks of long-term statistics.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "03:30:00"
+    actions:
+      - action: script.public_stats_backfill
+        data:
+          days: 14
+
+script:
+  # Past days from the recorder's long-term statistics (kept for good, unlike
+  # the 7-day history), the same sums as scripts/roof-solar.mjs in the dx2-66
+  # repo. The Worker only fills days it has no record for, so running this
+  # again, or over days the nightly push already sent, changes nothing. Today
+  # and yesterday are left to the nightly push. Run it by hand with a bigger
+  # `days` to load older history.
+  public_stats_backfill:
+    alias: Backfill power.dx2-66.com
+    description: Sends past days from the long-term statistics to power.dx2-66.com, which keeps only days it doesn't have.
+    icon: mdi:history
+    mode: single
+    fields:
+      days:
+        name: Days
+        description: How many days back to look. Today and yesterday are left to the nightly push.
+        default: 14
+        selector:
+          number:
+            min: 3
+            max: 400
+            mode: box
+    sequence:
+      - variables:
+          back: "{{ days | default(14) | int(14) }}"
+          # From local midnight `back` days ago (replace keeps the time zone, so
+          # DST is right) to the second before yesterday starts: the recorder
+          # also returns a period that starts exactly at end_time.
+          start: "{{ (today_at('12:00') - timedelta(days=back)).replace(hour=0).isoformat() }}"
+          end: "{{ ((today_at('12:00') - timedelta(days=1)).replace(hour=0) - timedelta(seconds=1)).isoformat() }}"
+          # The Energy dashboard's statistics.
+          ids:
+            solar: sensor.alphaess_solar_production
+            grid_in: sensor.alphaess_grid_to_load
+            grid_out: sensor.alphaess_solar_to_grid
+            charge: sensor.alphaess_charge
+            discharge: sensor.alphaess_discharge
+            car: sensor.garage_joris_home_charger_energy_meter
+      - action: recorder.get_statistics
+        data:
+          statistic_ids: "{{ ids.values() | list }}"
+          start_time: "{{ start }}"
+          end_time: "{{ end }}"
+          period: day
+          types: [change]
+          units:
+            energy: kWh
+        response_variable: daily
+      - action: recorder.get_statistics
+        data:
+          statistic_ids:
+            - "{{ ids.car }}"
+            - "{{ ids.grid_in }}"
+          start_time: "{{ start }}"
+          end_time: "{{ end }}"
+          period: hour
+          types: [change]
+          units:
+            energy: kWh
+        response_variable: hourly
+      - variables:
+          # One payload per day that looks whole. A day near zero is a gap
+          # (Home Assistant or the Alpha ESS cloud was down), and one above
+          # what the 4.55 kWp roof can make is a gap's production landing
+          # in one day: both are left out, for the page to estimate.
+          payloads: >
+            {% set s = daily.statistics %}
+            {% set d = namespace(maps={}) %}
+            {% for name, id in ids.items() %}
+              {% set rows = s.get(id, []) %}
+              {% set d.maps = dict(d.maps, **{name: dict(zip(rows | map(attribute='start') | map('string') | list, rows | map(attribute='change') | list))}) %}
+            {% endfor %}
+            {# Hour by hour, the car took at most what the house imported; the rest came from the roof. #}
+            {% set h = hourly.statistics %}
+            {% set imported = h.get(ids.grid_in, []) %}
+            {% set imported = dict(zip(imported | map(attribute='start') | map('string') | list, imported | map(attribute='change') | list)) %}
+            {% set roof = namespace(rows=[]) %}
+            {% for r in h.get(ids.car, []) %}
+              {% set car = [r.change or 0, 0] | max %}
+              {% if car > 0 %}
+                {% set grid = [imported.get(r.start | string, 0) or 0, 0] | max %}
+                {% set roof.rows = roof.rows + [{'day': (as_datetime(r.start | string) | as_local).date() | string, 'kwh': car - [car, grid] | min}] %}
+              {% endif %}
+            {% endfor %}
+            {% set ns = namespace(out=[]) %}
+            {% set yesterday = (now() - timedelta(days=1)).date() | string %}
+            {% for k in d.maps.solar.keys() %}
+              {% set day = (as_datetime(k) | as_local).date() | string %}
+              {% set v = [d.maps.solar.get(k), d.maps.grid_in.get(k), d.maps.grid_out.get(k), d.maps.charge.get(k), d.maps.discharge.get(k), d.maps.car.get(k)] %}
+              {% if day < yesterday and v | select('none') | list | count == 0 and v | min >= 0 and 0.5 <= v[0] <= 34 and v[1] <= 150 and v[5] <= 180 %}
+                {% set car_roof = [roof.rows | selectattr('day', 'eq', day) | map(attribute='kwh') | sum, v[5]] | min %}
+                {% set ns.out = ns.out + [{
+                  'day': day,
+                  'solar_kwh': v[0] | round(3),
+                  'import_kwh': v[1] | round(3),
+                  'export_kwh': v[2] | round(3),
+                  'battery_charge_kwh': v[3] | round(3),
+                  'battery_discharge_kwh': v[4] | round(3),
+                  'car_kwh': v[5] | round(3),
+                  'car_roof_kwh': car_roof | round(3),
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.out }}
+          filled: 0
+      - repeat:
+          for_each: "{{ payloads }}"
+          sequence:
+            - variables:
+                response: null
+            - action: rest_command.public_stats_backfill
+              data:
+                day_totals: "{{ repeat.item }}"
+              response_variable: response
+              continue_on_error: true
+            - variables:
+                filled: "{{ filled + (1 if response is mapping and response.status == 204 else 0) }}"
+      - action: logbook.log
+        data:
+          name: power.dx2-66.com
+          message: "backfill: {{ payloads | count }} whole days in the statistics, {{ filled }} new on the page"
+          entity_id: script.public_stats_backfill

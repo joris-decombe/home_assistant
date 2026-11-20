@@ -244,6 +244,12 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   Worker `dx2-66-power` in the dx2-66 repo). `sensor.public_stats_day` saves
   them at 23:59 (restored after a restart). The push retries hourly and at
   start until the Worker answers 204, recorded in `input_text.public_stats_pushed`.
+  `script.public_stats_backfill` (nightly at 03:30 for 14 days, or by hand with
+  a bigger `days`) sends past days from the recorder's long-term statistics
+  through `recorder.get_statistics`. It skips gap days (under 0.5 kWh of solar,
+  or over 34) and never yesterday or today. The Worker keeps only days it
+  doesn't have, so reruns change nothing. The Pi's statistics start on
+  15 October 2026.
   Daily totals only, never live readings, so the page doesn't show when
   anyone is home.
   `sensor.car_roof_power` splits the charger's power minute by minute (the
