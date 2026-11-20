@@ -25,7 +25,7 @@ downloaded `.img.xz` is cached in `rpi/build/` and re-verified on every run.
 | `HAOS_VERSION` | `latest` | HAOS release tag, e.g. `18.3` |
 | `NET_INTERFACE` | `ethernet` | `ethernet` or `wifi` |
 | `WIFI_SSID`, `WIFI_PSK` | | Required for `wifi` (Pi 3 is 2.4 GHz only) |
-| `NET_ADDRESS` | DHCP | Static IPv4 in CIDR, e.g. `192.168.68.50/24` |
+| `NET_ADDRESS` | DHCP | Static IPv4 in CIDR, e.g. `192.168.168.50/22` |
 | `NET_GATEWAY` | | Required with `NET_ADDRESS` |
 | `NET_DNS` | gateway | DNS server |
 | `SSH_AUTHORIZED_KEY` | | Public key for host debug SSH (`root`, port 22222) |

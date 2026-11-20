@@ -46,7 +46,7 @@ it. After editing it, copy it to the Pi and reload template entities.
 
 ## 1. Home Assistant
 
-1. Reserve **192.168.68.68** for the Pi in the router (Deco app → Advanced →
+1. Reserve **192.168.168.68** for the Pi in the router (Deco app → Advanced →
    Address reservation), so the phone's URL never breaks.
 2. Settings → People → **Add person** "Wall Phone", allow login, **not**
    administrator, tick *Can only log in from the local network*.
@@ -65,7 +65,7 @@ schedules, Remote Administration) adds a "Get a License" banner.
    Samsung account → Remove account. Remove them before any factory reset, or
    the reset asks for the old Google login.
 3. Fully Kiosk → Settings (everything else off):
-   - Web Content → *Start URL*: `http://192.168.68.68:8123/wall-phone/home`
+   - Web Content → *Start URL*: `http://192.168.168.68:8123/wall-phone/home`
      (`http://` and `:8123` are required; anything else is "connection refused")
    - Device Management → *Keep screen on*, *Launch on boot*
    - Web Auto Reload → *Auto reload on network reconnect*
@@ -96,7 +96,7 @@ The dashboard shows only what HA can control. As of 2026-10-15:
 |---|---|---|
 | TP-Link/Tapo plugs | In HA | Lampe salon (on the wall phone). Computer, aquarium pump, aquarium light and TV are for consumption only: they're on the Energy dashboard, not the wall phone. |
 | EV charger (Evnex) | In HA | **Evnex** (HACS, cloud login). Its lifetime meter and metered power are the Energy dashboard's "EV charger" device (replacing Alpha ESS's unused EV counter), shown on the Energy view. OCPP was installed but never used, and is removed. |
-| Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.68.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. Living room and Dining room also report lifetime energy (0.1 kWh steps, no live watts; Hall reports neither): they're in the Energy dashboard, and daily `utility_meter` helpers (created in the UI) feed `sensor.heat_pumps_today`, and `derivative` helpers (1 h window) give an approximate power for the Energy view's flow chart. |
+| Mitsubishi heat pumps | In HA | **ECHONETLite** (HACS), fully local: Hall `192.168.168.63`, Living room `.84`, Dining room `.89`. Reserve these IPs in the router; the integration is configured by address. ECHONET Lite is enabled per unit in the Mitsubishi Electric NZ app. Living room and Dining room also report lifetime energy (0.1 kWh steps, no live watts; Hall reports neither): they're in the Energy dashboard, and daily `utility_meter` helpers (created in the UI) feed `sensor.heat_pumps_today`, and `derivative` helpers (1 h window) give an approximate power for the Energy view's flow chart. |
 | Xiaomi lights (Mi Home) | In HA | **Xiaomi Home** (Xiaomi's official integration, HACS) on the **Singapore** server: Mi Home's New Zealand region lives there. Ceiling lights (group), both bedside lamps, fan, vacuum, night lights and Bluetooth sensors. An older China-server entry only holds stale copies. |
 | Tapo cameras (C420 + H200 hubs) | In HA | **Tapo Control** (HACS) for live view and controls, **tapo_events** (this repo) for events and clips: the **Cameras** view. See [tapo-cameras.md](tapo-cameras.md). |
 | Matter lights | Not in HA | Matter has no devices paired on this HA (only an old, stale Tapo plug). Add each light with the HA Companion app → Settings → Devices → *Add Matter device*, or share it from its current app with a pairing code. Wi-Fi Matter devices work as is; Thread ones need a border router. |
