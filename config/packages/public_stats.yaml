@@ -1,28 +1,37 @@
-# Sends the day's solar totals to https://power.dx2-66.com, the public page
-# about our roof on the blog's domain (the Worker dx2-66-power, in the dx2-66
-# repo: worker/power.js). Once a day, just before midnight: what the panels
-# made, grid import and export, battery charge and discharge, what the car
-# charger used and how much of that came from the roof. Nothing live: a day's
-# totals don't show when anyone was home or when the car was out.
+# Sends our roof's solar, hour by hour, to https://power.dx2-66.com, the public
+# page about it on the blog's domain (the Worker dx2-66-power, in the dx2-66
+# repo: worker/power.js). Each hour of a finished day: what the panels made,
+# grid import and export, battery charge and discharge, what the car charger
+# used and how much of that came from the roof. All from the recorder's
+# long-term statistics, which are kept for good. The page shows daily totals
+# and an average day's solar only, never hourly house use or the day in
+# progress, so it doesn't show when anyone was home or when the car was out.
 #
-# At 23:59, sensor.public_stats_day saves the day's totals in its attributes
-# (restored after a restart). The push sends that saved day, then every hour
-# and at each start until the Worker takes it (HTTP 204), noted in
-# input_text.public_stats_pushed. A failed push heals itself before the next
-# night, within the Worker's today-or-yesterday window. A day Home Assistant
-# misses entirely is estimated on the page from the days around it.
+# script.public_stats_send does the work. At 00:40 it sends yesterday and the
+# 13 days before: the Worker replaces yesterday's hours and fills only hours
+# it doesn't have for older days, so resending is harmless. Until yesterday
+# has gone through whole (input_text.public_stats_pushed), it retries every
+# hour and at each start. Run it by hand with a bigger `days` for older
+# history; the Pi's statistics start on 15 October 2026.
+#
+# Hours Home Assistant missed: when it's down, or Alpha ESS gets stuck, the
+# statistics show hours with nothing, then one hour holding all the energy
+# that piled up (on 19 November 2026, 26 kWh of solar at 23:00). That energy
+# is spread back over the missed hours and that one: solar, export and
+# battery charge along the roof's usual day (the average for each hour), the
+# rest evenly. Those hours are sent marked estimated. Hours with no catch-up
+# yet (the gap is still open) aren't sent.
 #
 # The only credential is a push secret: 32+ random characters, in the Pi's
 # secrets.yaml as
 #   public_stats_push_auth: "Bearer <secret>"
 # and as the Worker secret PUSH_SECRET on dx2-66-power. It reads nothing and
-# reaches nothing in Home Assistant. All it can do is write today's or
-# yesterday's totals, as numbers in range.
+# reaches nothing in Home Assistant. All it can do is replace today's or
+# yesterday's hours and fill missing hours of older days, as numbers in range.
 #
 # Copy to /config/packages/, add the secret, check the config and restart
-# (integration and utility_meter sensors in YAML don't reload). Later changes
-# to the rest of the file only need template, input_text, rest_command and
-# automation reloads.
+# (the integration sensor in YAML doesn't reload). Later changes to the rest
+# only need template, input_text, rest_command, script and automation reloads.
 
 input_text:
   public_stats_pushed:
@@ -31,38 +40,6 @@ input_text:
     max: 10
 
 template:
-  # The day's totals, saved at 23:59 so a push can still send them after
-  # midnight, when the daily sensors have reset.
-  - triggers:
-      - trigger: time
-        at: "23:59:00"
-    sensor:
-      - name: Public stats day
-        unique_id: public_stats_day
-        default_entity_id: sensor.public_stats_day
-        icon: mdi:calendar-check-outline
-        state: "{{ now().date() | string }}"
-        # Each total in kWh, or null when its sensor is unavailable.
-        attributes:
-          totals: >
-            {% set sensors = {
-              'solar_kwh': 'sensor.alphaess_daily_pv_generation',
-              'import_kwh': 'sensor.alphaess_daily_grid_consumption',
-              'export_kwh': 'sensor.alphaess_daily_feed_in',
-              'battery_charge_kwh': 'sensor.alphaess_daily_battery_charge',
-              'battery_discharge_kwh': 'sensor.alphaess_daily_battery_discharge',
-              'car_kwh': 'sensor.evnex_residential_nz_total_power_usage_today',
-              'car_roof_kwh': 'sensor.car_roof_energy_today',
-            } %}
-            {% set per_kwh = {'Wh': 0.001, 'kWh': 1, 'MWh': 1000} %}
-            {% set ns = namespace(items=[]) %}
-            {% for key, id in sensors.items() %}
-              {% set value = (states(id) | float * per_kwh.get(state_attr(id, 'unit_of_measurement'), 1)) | round(3)
-                             if has_value(id) and is_number(states(id)) else none %}
-              {% set ns.items = ns.items + [(key, value)] %}
-            {% endfor %}
-            {{ dict(ns.items) | to_json }}
-
   - sensor:
       - name: Car charging from the roof
         unique_id: public_stats_car_roof_power
@@ -89,6 +66,8 @@ template:
           {{ [car - imported, 0] | max | round(0) }}
 
 sensor:
+  # Its hourly statistics are the car-from-roof the script sends, where it has
+  # them; elsewhere the script splits the charger's hour against grid import.
   - platform: integration
     source: sensor.car_roof_power
     name: Car energy from the roof
@@ -101,56 +80,221 @@ sensor:
     max_sub_interval:
       minutes: 5
 
-utility_meter:
-  car_roof_energy_today:
-    unique_id: public_stats_car_roof_energy_today
-    source: sensor.car_energy_from_the_roof
-    cycle: daily
-
 rest_command:
-  public_stats_push:
+  # One day's hours from the script.
+  public_stats_send:
     url: https://power.dx2-66.com/push
     method: post
     headers:
       authorization: !secret public_stats_push_auth
     content_type: application/json
     timeout: 30
-    # The saved day and its totals.
-    payload: >
-      {% set totals = state_attr('sensor.public_stats_day', 'totals') %}
-      {% set totals = totals | from_json if totals is string else totals %}
-      {{ dict(totals, day=states('sensor.public_stats_day')) | to_json }}
+    payload: "{{ day_hours | to_json }}"
 
 automation:
-  - id: public_stats_push
-    alias: Send the day's solar to power.dx2-66.com
-    description: Sends the day saved at 23:59, and retries every hour until the Worker takes it.
+  - id: public_stats_send
+    alias: Send the solar hours to power.dx2-66.com
+    description: Sends yesterday's hours and fills missed hours of the 13 days before.
     mode: single
     triggers:
-      - trigger: state
-        entity_id: sensor.public_stats_day
+      # Yesterday's last hour is in the statistics by about 00:12.
+      - trigger: time
+        at: "00:40:00"
+    actions:
+      - action: script.public_stats_send
+        data:
+          days: 14
+
+  - id: public_stats_send_retry
+    alias: Retry the solar hours for power.dx2-66.com
+    description: Sends yesterday again, every hour and at start, until it has gone through whole.
+    mode: single
+    triggers:
       - trigger: time_pattern
-        minutes: 17
+        minutes: 47
       - trigger: homeassistant
         event: start
     conditions:
-      # A saved day the Worker still accepts (today or yesterday) and hasn't taken yet.
       - condition: template
         value_template: >
-          {% set day = states('sensor.public_stats_day') %}
-          {{ day in [now().date() | string, (now() - timedelta(days=1)).date() | string]
-             and day != states('input_text.public_stats_pushed')
-             and state_attr('sensor.public_stats_day', 'totals') is not none }}
+          {{ now().hour >= 1
+             and states('input_text.public_stats_pushed') != (now() - timedelta(days=1)).date() | string }}
     actions:
-      - action: rest_command.public_stats_push
-        response_variable: response
-        continue_on_error: true
+      - action: script.public_stats_send
+        data:
+          days: 1
+
+script:
+  public_stats_send:
+    alias: Send solar hours to power.dx2-66.com
+    description: Sends finished days hour by hour from the long-term statistics. Yesterday's hours replace what's there; older days only gain hours they don't have.
+    icon: mdi:solar-power-variant
+    mode: queued
+    max: 3
+    fields:
+      days:
+        name: Days
+        description: How many finished days to send, ending yesterday.
+        default: 1
+        selector:
+          number:
+            min: 1
+            max: 60
+            mode: box
+    sequence:
+      - variables:
+          back: "{{ [[days | default(1) | int(1), 1] | max, 60] | min }}"
+          first_day: "{{ (now() - timedelta(days=back)).date() | string }}"
+          last_day: "{{ (now() - timedelta(days=1)).date() | string }}"
+          # Four days earlier than the first day sent, so a gap that started
+          # before it can still be spread. Local midnight (replace keeps the
+          # time zone, so DST is right) to the second before today: the
+          # recorder also returns a period that starts exactly at end_time.
+          start: "{{ (today_at('12:00') - timedelta(days=back + 4)).replace(hour=0).isoformat() }}"
+          end: "{{ (today_at('00:00') - timedelta(seconds=1)).isoformat() }}"
+          # The Energy dashboard's statistics, and the car-from-roof sensor.
+          ids:
+            solar: sensor.alphaess_solar_production
+            grid_in: sensor.alphaess_grid_to_load
+            grid_out: sensor.alphaess_solar_to_grid
+            charge: sensor.alphaess_charge
+            discharge: sensor.alphaess_discharge
+            car: sensor.garage_joris_home_charger_energy_meter
+            roof: sensor.car_energy_from_the_roof
+      - action: recorder.get_statistics
+        data:
+          statistic_ids: "{{ ids.values() | list }}"
+          start_time: "{{ start }}"
+          end_time: "{{ end }}"
+          period: hour
+          types: [change]
+          units:
+            energy: kWh
+        response_variable: hourly
+      - variables:
+          # One payload per day: {day, hours: {"<UTC hour>Z": {...}}}.
+          payloads: >
+            {% set s = hourly.statistics %}
+            {% set ALPHA = ['solar', 'grid_in', 'grid_out', 'charge', 'discharge'] %}
+            {% set SUNNY = ['solar', 'grid_out', 'charge'] %}
+            {# Each statistic as {hour start (unix seconds): kWh}. #}
+            {% set m = namespace(maps={}) %}
+            {% for f in ALPHA + ['car', 'roof'] %}
+              {% set rows = s.get(ids[f], []) %}
+              {% set m.maps = dict(m.maps, **{f: dict(zip(rows | map(attribute='start') | map('as_timestamp') | map('int') | list, rows | map(attribute='change') | list))}) %}
+            {% endfor %}
+            {# Every hour of the span. Alpha ESS is live in an hour when the house drew something from somewhere: it always does. #}
+            {% set t0 = as_timestamp(start) | int %}
+            {% set n = ((as_timestamp(end) | int) + 1 - t0) // 3600 %}
+            {% set T = namespace(hours=[], live=[], car=[]) %}
+            {% for i in range(n) %}
+              {% set t = t0 + i * 3600 %}
+              {% set a = namespace(ok=true) %}
+              {% for f in ALPHA %}{% if m.maps[f].get(t) is none %}{% set a.ok = false %}{% endif %}{% endfor %}
+              {% set T.hours = T.hours + [t] %}
+              {% set T.live = T.live + [a.ok and (m.maps.solar[t] > 0 or m.maps.grid_in[t] > 0 or m.maps.discharge[t] > 0)] %}
+              {% set T.car = T.car + [m.maps.car.get(t) is not none] %}
+            {% endfor %}
+            {# For each hour, the live hour that holds its energy: itself, or the catch-up after its gap. #}
+            {% set C = namespace(a=[], c=[], na=none, nc=none) %}
+            {% for i in range(n - 1, -1, -1) %}
+              {% if T.live[i] %}{% set C.na = i %}{% endif %}
+              {% if T.car[i] %}{% set C.nc = i %}{% endif %}
+              {% set C.a = [C.na] + C.a %}
+              {% set C.c = [C.nc] + C.c %}
+            {% endfor %}
+            {# The roof's usual day: average solar for each local hour, from ordinary live hours. #}
+            {% set P = namespace(rows=[]) %}
+            {% for i in range(n) %}
+              {% if T.live[i] and (i == 0 or T.live[i - 1]) %}
+                {% set P.rows = P.rows + [{'h': T.hours[i] | timestamp_custom('%H') | int, 'v': m.maps.solar[T.hours[i]]}] %}
+              {% endif %}
+            {% endfor %}
+            {% set prof = namespace(d={}) %}
+            {% for g in P.rows | groupby('h') %}
+              {% set prof.d = dict(prof.d, **{g.grouper | string: (g.list | map(attribute='v') | sum) / (g.list | count)}) %}
+            {% endfor %}
+            {# Each catch-up's group: how many hours share it, and their solar weights. #}
+            {% set G = namespace(a=[], c=[]) %}
+            {% for i in range(n) %}
+              {% if C.a[i] is not none %}{% set G.a = G.a + [{'k': C.a[i], 'w': prof.d.get(T.hours[i] | timestamp_custom('%H') | int | string, 0)}] %}{% endif %}
+              {% if C.c[i] is not none %}{% set G.c = G.c + [{'k': C.c[i]}] %}{% endif %}
+            {% endfor %}
+            {% set W = namespace(sun={}, cnt={}, car={}) %}
+            {% for g in G.a | groupby('k') %}
+              {% set W.sun = dict(W.sun, **{g.grouper | string: g.list | map(attribute='w') | sum}) %}
+              {% set W.cnt = dict(W.cnt, **{g.grouper | string: g.list | count}) %}
+            {% endfor %}
+            {% for g in G.c | groupby('k') %}{% set W.car = dict(W.car, **{g.grouper | string: g.list | count}) %}{% endfor %}
+            {# Each hour of the days sent: its share of its group's energy. #}
+            {% set O = namespace(rows=[]) %}
+            {% for i in range(n) %}
+              {% set t = T.hours[i] %}
+              {% set day = t | timestamp_custom('%Y-%m-%d') %}
+              {% set ca = C.a[i] %}
+              {% set cc = C.c[i] %}
+              {% if first_day <= day <= last_day and ca is not none and cc is not none %}
+                {% set k = ca | string %}
+                {% set kc = cc | string %}
+                {% set flat = 1 / W.cnt[k] %}
+                {% set w = prof.d.get(t | timestamp_custom('%H') | int | string, 0) %}
+                {% set sunny = (w / W.sun[k]) if W.sun[k] > 0 else flat %}
+                {% set tc = T.hours[ca] %}
+                {% set v = namespace(d={}) %}
+                {% for f in ALPHA %}{% set v.d = dict(v.d, **{f: m.maps[f][tc] * (sunny if f in SUNNY else flat)}) %}{% endfor %}
+                {% set car = m.maps.car[T.hours[cc]] / W.car[kc] %}
+                {% set est = W.cnt[k] > 1 or W.car[kc] > 1 %}
+                {% set split = car - [car, v.d.grid_in] | min %}
+                {% set roof = m.maps.roof.get(t) if not est and m.maps.roof.get(t) is not none else split %}
+                {% set roof = [[roof, 0] | max, car] | min %}
+                {% set vals = [v.d.solar, v.d.grid_in, v.d.grid_out, v.d.charge, v.d.discharge, car] %}
+                {# Float noise can leave -0.000000001; a meter reset is far below -0.05. #}
+                {% if vals | min >= -0.05 and v.d.solar <= 6 and v.d.grid_in <= 25 and v.d.grid_out <= 6 and v.d.charge <= 6 and v.d.discharge <= 6 and car <= 8 %}
+                  {% set O.rows = O.rows + [{'day': day, 'key': t | timestamp_custom('%Y-%m-%dT%H:00:00Z', false), 'v': {
+                    'solar_kwh': [v.d.solar, 0] | max | round(3),
+                    'import_kwh': [v.d.grid_in, 0] | max | round(3),
+                    'export_kwh': [v.d.grid_out, 0] | max | round(3),
+                    'battery_charge_kwh': [v.d.charge, 0] | max | round(3),
+                    'battery_discharge_kwh': [v.d.discharge, 0] | max | round(3),
+                    'car_kwh': [car, 0] | max | round(3),
+                    'car_roof_kwh': roof | round(3),
+                    'estimated': est,
+                  }}] %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {% set D = namespace(out=[]) %}
+            {% for g in O.rows | groupby('day') %}
+              {% set D.out = D.out + [{'day': g.grouper, 'hours': dict(zip(g.list | map(attribute='key') | list, g.list | map(attribute='v') | list))}] %}
+            {% endfor %}
+            {{ D.out }}
+          taken: 0
+          yesterday_whole: false
+      - repeat:
+          for_each: "{{ payloads }}"
+          sequence:
+            - variables:
+                response: null
+            - action: rest_command.public_stats_send
+              data:
+                day_hours: "{{ repeat.item }}"
+              response_variable: response
+              continue_on_error: true
+            - variables:
+                ok: "{{ response is mapping and response.status == 204 }}"
+                taken: "{{ taken + (1 if ok else 0) }}"
+                yesterday_whole: "{{ yesterday_whole or (ok and repeat.item.day == last_day and repeat.item.hours | count >= 23) }}"
       - if:
           - condition: template
-            value_template: "{{ response is defined and response.status == 204 }}"
+            value_template: "{{ yesterday_whole }}"
         then:
           - action: input_text.set_value
             target:
               entity_id: input_text.public_stats_pushed
             data:
-              value: "{{ states('sensor.public_stats_day') }}"
+              value: "{{ last_day }}"
+      - action: logbook.log
+        data:
+          name: power.dx2-66.com
+          message: "sent {{ payloads | count }} days hour by hour, {{ taken }} took new hours"
+          entity_id: script.public_stats_send
