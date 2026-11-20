@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Configuration, scripts and docs for a Home Assistant install. **The repo is not
 the live config.** Home Assistant OS runs on a **Raspberry Pi 3** at
-`192.168.68.68` (port 8123, DHCP-reserved). Changes reach it only by being pushed
+`192.168.168.68` (port 8123, DHCP-reserved). Changes reach it only by being pushed
 or copied (see below). Most of HA's state lives on the Pi and is managed through
 the UI or API, not in this repo: `.storage/`, integrations and UI helpers.
 
@@ -41,7 +41,7 @@ main **Overview** dashboard, which is only right for
 `homeassistant: packages: !include_dir_named packages`): copy the file over host
 SSH, run `sync`, validate, then reload (no restart needed for templates or scripts):
 ```bash
-ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.68.68 'cat > /mnt/data/supervisor/homeassistant/packages/wall_phone.yaml && sync' < config/packages/wall_phone.yaml
+ssh -i ~/.ssh/ha-rpi -p 22222 root@192.168.168.68 'cat > /mnt/data/supervisor/homeassistant/packages/wall_phone.yaml && sync' < config/packages/wall_phone.yaml
 # then POST /api/config/core/check_config, and /api/services/template/reload (and script/reload)
 ```
 On the HAOS host, `/config` is `/mnt/data/supervisor/homeassistant`.
@@ -275,7 +275,7 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   errors). Never print or store the Tapo password outside HA. See
   `docs/tapo-cameras.md`.
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
-  Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.68.68:8123`
+  Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.168.68:8123`
   stays the address for the wall phone, MCP and the Xiaomi sign-in.
 
 ## Raspberry Pi image builder

@@ -21,7 +21,7 @@ import websockets
 
 
 async def push_dashboard(dashboard_path, url_path, icon):
-    hass_host = os.environ.get("HASS_HOST", "http://192.168.68.68:8123")
+    hass_host = os.environ.get("HASS_HOST", "http://192.168.168.68:8123")
     hass_token = os.environ.get("HASS_TOKEN")
 
     if not hass_token:

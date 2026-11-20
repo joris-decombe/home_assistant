@@ -3,7 +3,7 @@
 Home Assistant on the Pi is reachable over HTTPS through a **Cloudflare Tunnel**.
 The tunnel is outbound only, so no router ports are open. Cloudflare terminates
 TLS, and **Cloudflare Access** sits in front, so only allowed emails get to HA's
-own login page. At home, `http://192.168.68.68:8123` keeps working unchanged
+own login page. At home, `http://192.168.168.68:8123` keeps working unchanged
 (used by the wall phone, the MCP server and the Xiaomi Home sign-in).
 
 ```
