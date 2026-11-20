@@ -178,6 +178,9 @@ script:
             discharge: sensor.alphaess_discharge
             car: sensor.garage_joris_home_charger_energy_meter
             roof: sensor.car_energy_from_the_roof
+          # Evnex's last 10 charging sessions (start, end, Wh): they hold charging
+          # HA missed while it was down.
+          sessions: "{{ state_attr('sensor.garage_joris_home_charger_session_history', 'sessions') or [] }}"
       - action: recorder.get_statistics
         data:
           statistic_ids: "{{ ids.values() | list }}"
@@ -245,6 +248,25 @@ script:
               {%- set W.cnt = dict(W.cnt, **{g.grouper | string: g.list | count}) %}
             {%- endfor %}
             {%- for g in G.c | groupby('k') %}{%- set W.car = dict(W.car, **{g.grouper | string: g.list | count}) %}{%- endfor %}
+            {#- Evnex's sessions, each spread evenly over the hours it was plugged in, by hour and by day. #}
+            {%- set S = namespace(rows=[]) %}
+            {%- for x in sessions if x.energy_wh is number and x.energy_wh > 0 and x.start_time and x.end_time %}
+              {%- set a = as_timestamp(x.start_time) | int %}
+              {%- set b = as_timestamp(x.end_time) | int %}
+              {%- for t in range((a // 3600) * 3600, b, 3600) if b > a %}
+                {%- set ov = ([t + 3600, b] | min) - ([t, a] | max) %}
+                {%- if ov > 0 %}
+                  {%- set S.rows = S.rows + [{'t': t, 'day': t | timestamp_custom('%Y-%m-%d'), 'kwh': x.energy_wh / 1000 * ov / (b - a)}] %}
+                {%- endif %}
+              {%- endfor %}
+            {%- endfor %}
+            {%- set SH = namespace(hour={}, day={}) %}
+            {%- for g in S.rows | groupby('t') %}{%- set SH.hour = dict(SH.hour, **{g.grouper | string: g.list | map(attribute='kwh') | sum}) %}{%- endfor %}
+            {%- for g in S.rows | groupby('day') %}{%- set SH.day = dict(SH.day, **{g.grouper: g.list | map(attribute='kwh') | sum}) %}{%- endfor %}
+            {#- What the charger statistic holds for each day, to compare. #}
+            {%- set CD = namespace(rows=[], day={}) %}
+            {%- for t in T.hours %}{%- set CD.rows = CD.rows + [{'day': t | timestamp_custom('%Y-%m-%d'), 'kwh': [m.maps.car.get(t, 0) or 0, 0] | max}] %}{%- endfor %}
+            {%- for g in CD.rows | groupby('day') %}{%- set CD.day = dict(CD.day, **{g.grouper: g.list | map(attribute='kwh') | sum}) %}{%- endfor %}
             {#- Each hour of the days sent: its share of its group's energy. #}
             {%- set O = namespace(rows=[]) %}
             {%- for i in range(n) %}
@@ -268,6 +290,11 @@ script:
                 {%- for f in ALPHA %}{%- set v.d = dict(v.d, **{f: m.maps[f][tc] * (sunny if f in SUNNY else flat)}) %}{%- endfor %}
                 {%- set car = m.maps.car[T.hours[cc]] / W.car[kc] %}
                 {%- set est = spread or W.car[kc] > 1 %}
+                {#- A day whose sessions hold more than the statistic (HA was down while the car charged): its charging comes from the sessions. #}
+                {%- if SH.day.get(day, 0) > CD.day.get(day, 0) + 0.5 %}
+                  {%- set car = SH.hour.get(t | string, 0) %}
+                  {%- set est = est or car > 0 %}
+                {%- endif %}
                 {%- set split = car - [car, v.d.grid_in] | min %}
                 {%- set roof = m.maps.roof.get(t) if not est and m.maps.roof.get(t) is not none else split %}
                 {%- set roof = [[roof, 0] | max, [car, 0] | max] | min %}
