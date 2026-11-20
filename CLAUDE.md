@@ -240,9 +240,12 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   first, then copied; the chart's dashed estimate repeats the package's solar
   curve in JS, so change both together).
 - **Public solar page:** `config/packages/public_stats.yaml` posts the day's
-  solar, grid, battery and car totals to `https://power.dx2-66.com/push` at
-  23:50 and 23:58 (the Worker `dx2-66-power` in the dx2-66 repo). Daily totals
-  only, never live readings, so the page doesn't show when anyone is home.
+  solar, grid, battery and car totals to `https://power.dx2-66.com/push` (the
+  Worker `dx2-66-power` in the dx2-66 repo). `sensor.public_stats_day` saves
+  them at 23:59 (restored after a restart). The push retries hourly and at
+  start until the Worker answers 204, recorded in `input_text.public_stats_pushed`.
+  Daily totals only, never live readings, so the page doesn't show when
+  anyone is home.
   `sensor.car_roof_power` splits the charger's power minute by minute (the
   car took at most what the house imported; the rest came from the roof),
   integrated into `sensor.car_energy_from_the_roof` and the daily

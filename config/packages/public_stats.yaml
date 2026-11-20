@@ -5,9 +5,12 @@
 # charger used and how much of that came from the roof. Nothing live: a day's
 # totals don't show when anyone was home or when the car was out.
 #
-# Two pushes, at 23:50 and 23:58. The second overwrites the first, so if it
-# fails the day is only 8 minutes short. A day with no push is missing on the
-# page, not zero.
+# At 23:59, sensor.public_stats_day saves the day's totals in its attributes
+# (restored after a restart). The push sends that saved day, then every hour
+# and at each start until the Worker takes it (HTTP 204), noted in
+# input_text.public_stats_pushed. A failed push heals itself before the next
+# night, within the Worker's today-or-yesterday window. A day Home Assistant
+# misses entirely is estimated on the page from the days around it.
 #
 # The only credential is a push secret: 32+ random characters, in the Pi's
 # secrets.yaml as
@@ -17,9 +20,49 @@
 # yesterday's totals, as numbers in range.
 #
 # Copy to /config/packages/, add the secret, check the config and restart
-# (integration and utility_meter sensors in YAML don't reload).
+# (integration and utility_meter sensors in YAML don't reload). Later changes
+# to the rest of the file only need template, input_text, rest_command and
+# automation reloads.
+
+input_text:
+  public_stats_pushed:
+    name: Last day sent to power.dx2-66.com
+    icon: mdi:cloud-check-outline
+    max: 10
 
 template:
+  # The day's totals, saved at 23:59 so a push can still send them after
+  # midnight, when the daily sensors have reset.
+  - triggers:
+      - trigger: time
+        at: "23:59:00"
+    sensor:
+      - name: Public stats day
+        unique_id: public_stats_day
+        default_entity_id: sensor.public_stats_day
+        icon: mdi:calendar-check-outline
+        state: "{{ now().date() | string }}"
+        # Each total in kWh, or null when its sensor is unavailable.
+        attributes:
+          totals: >
+            {% set sensors = {
+              'solar_kwh': 'sensor.alphaess_daily_pv_generation',
+              'import_kwh': 'sensor.alphaess_daily_grid_consumption',
+              'export_kwh': 'sensor.alphaess_daily_feed_in',
+              'battery_charge_kwh': 'sensor.alphaess_daily_battery_charge',
+              'battery_discharge_kwh': 'sensor.alphaess_daily_battery_discharge',
+              'car_kwh': 'sensor.evnex_residential_nz_total_power_usage_today',
+              'car_roof_kwh': 'sensor.car_roof_energy_today',
+            } %}
+            {% set per_kwh = {'Wh': 0.001, 'kWh': 1, 'MWh': 1000} %}
+            {% set ns = namespace(items=[]) %}
+            {% for key, id in sensors.items() %}
+              {% set value = (states(id) | float * per_kwh.get(state_attr(id, 'unit_of_measurement'), 1)) | round(3)
+                             if has_value(id) and is_number(states(id)) else none %}
+              {% set ns.items = ns.items + [(key, value)] %}
+            {% endfor %}
+            {{ dict(ns.items) | to_json }}
+
   - sensor:
       - name: Car charging from the roof
         unique_id: public_stats_car_roof_power
@@ -72,37 +115,42 @@ rest_command:
       authorization: !secret public_stats_push_auth
     content_type: application/json
     timeout: 30
-    # Each total in kWh, or null when its sensor is unavailable.
+    # The saved day and its totals.
     payload: >
-      {% set sensors = {
-        'solar_kwh': 'sensor.alphaess_daily_pv_generation',
-        'import_kwh': 'sensor.alphaess_daily_grid_consumption',
-        'export_kwh': 'sensor.alphaess_daily_feed_in',
-        'battery_charge_kwh': 'sensor.alphaess_daily_battery_charge',
-        'battery_discharge_kwh': 'sensor.alphaess_daily_battery_discharge',
-        'car_kwh': 'sensor.evnex_residential_nz_total_power_usage_today',
-        'car_roof_kwh': 'sensor.car_roof_energy_today',
-      } %}
-      {% set per_kwh = {'Wh': 0.001, 'kWh': 1, 'MWh': 1000} %}
-      {% set ns = namespace(items=[('day', now().date() | string)]) %}
-      {% for key, id in sensors.items() %}
-        {% set value = (states(id) | float * per_kwh.get(state_attr(id, 'unit_of_measurement'), 1)) | round(3)
-                       if has_value(id) and is_number(states(id)) else none %}
-        {% set ns.items = ns.items + [(key, value)] %}
-      {% endfor %}
-      {{ dict(ns.items) | to_json }}
+      {% set totals = state_attr('sensor.public_stats_day', 'totals') %}
+      {% set totals = totals | from_json if totals is string else totals %}
+      {{ dict(totals, day=states('sensor.public_stats_day')) | to_json }}
 
 automation:
   - id: public_stats_push
     alias: Send the day's solar to power.dx2-66.com
-    description: Posts today's solar, grid, battery and car totals to the public page, twice before midnight.
+    description: Sends the day saved at 23:59, and retries every hour until the Worker takes it.
     mode: single
     triggers:
-      - trigger: time
-        at: "23:50:00"
-      - trigger: time
-        at: "23:58:00"
+      - trigger: state
+        entity_id: sensor.public_stats_day
+      - trigger: time_pattern
+        minutes: 17
+      - trigger: homeassistant
+        event: start
+    conditions:
+      # A saved day the Worker still accepts (today or yesterday) and hasn't taken yet.
+      - condition: template
+        value_template: >
+          {% set day = states('sensor.public_stats_day') %}
+          {{ day in [now().date() | string, (now() - timedelta(days=1)).date() | string]
+             and day != states('input_text.public_stats_pushed')
+             and state_attr('sensor.public_stats_day', 'totals') is not none }}
     actions:
       - action: rest_command.public_stats_push
         response_variable: response
         continue_on_error: true
+      - if:
+          - condition: template
+            value_template: "{{ response is defined and response.status == 204 }}"
+        then:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.public_stats_pushed
+            data:
+              value: "{{ states('sensor.public_stats_day') }}"
