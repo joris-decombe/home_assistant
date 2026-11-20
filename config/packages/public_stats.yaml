@@ -8,11 +8,17 @@
 # progress, so it doesn't show when anyone was home or when the car was out.
 #
 # script.public_stats_send does the work. At 00:40 it sends yesterday and the
-# 13 days before: the Worker replaces yesterday's hours and fills only hours
+# 2 days before: the Worker replaces yesterday's hours and fills only hours
 # it doesn't have for older days, so resending is harmless. Until yesterday
 # has gone through whole (input_text.public_stats_pushed), it retries every
-# hour and at each start. Run it by hand with a bigger `days` for older
-# history; the Pi's statistics start on 15 October 2026.
+# hour and at each start. Run it by hand with a bigger `days` (14 at most)
+# for older history; the Pi's statistics start on 15 October 2026.
+#
+# Memory: the Pi has 1 GB and HA runs close to it, so a run stays small. It
+# reads (days + 3) x 24 hours of 7 statistics and builds its lists in Jinja,
+# where each step copies the list (memory and time grow with the square of
+# the hours), inside HA's event loop. 3 days is about 140 hours; the 60-day
+# backfill of 20 November (1,500 hours, 11-13 s a run) is not to be repeated.
 #
 # Hours Home Assistant missed: when it's down, or Alpha ESS gets stuck, the
 # statistics show hours with nothing, then one hour holding all the energy
@@ -102,7 +108,7 @@ rest_command:
 automation:
   - id: public_stats_send
     alias: Send the solar hours to power.dx2-66.com
-    description: Sends yesterday's hours and fills missed hours of the 13 days before.
+    description: Sends yesterday's hours and fills missed hours of the 2 days before.
     mode: single
     trace:
       stored_traces: 1
@@ -113,7 +119,7 @@ automation:
     actions:
       - action: script.public_stats_send
         data:
-          days: 14
+          days: 3
 
   - id: public_stats_send_retry
     alias: Retry the solar hours for power.dx2-66.com
@@ -146,8 +152,10 @@ script:
     # 1 GB Pi that tipped HA into running out of memory on 20 November 2026.
     trace:
       stored_traces: 1
-    mode: queued
-    max: 3
+    # One run at a time: a second one is dropped, not queued, so two can't
+    # hold their statistics in memory together.
+    mode: single
+    max_exceeded: silent
     fields:
       days:
         name: Days
@@ -156,18 +164,19 @@ script:
         selector:
           number:
             min: 1
-            max: 60
+            max: 14
             mode: box
     sequence:
       - variables:
-          back: "{{ [[days | default(1) | int(1), 1] | max, 60] | min }}"
+          back: "{{ [[days | default(1) | int(1), 1] | max, 14] | min }}"
           first_day: "{{ (now() - timedelta(days=back)).date() | string }}"
           last_day: "{{ (now() - timedelta(days=1)).date() | string }}"
-          # Four days earlier than the first day sent, so a gap that started
-          # before it can still be spread. Local midnight (replace keeps the
+          # Three days earlier than the first day sent, so a gap that started
+          # before it can still be spread (the longest so far, 17-19 November
+          # 2026, was 54 hours). Local midnight (replace keeps the
           # time zone, so DST is right) to the second before today: the
           # recorder also returns a period that starts exactly at end_time.
-          start: "{{ (today_at('12:00') - timedelta(days=back + 4)).replace(hour=0).isoformat() }}"
+          start: "{{ (today_at('12:00') - timedelta(days=back + 3)).replace(hour=0).isoformat() }}"
           end: "{{ (today_at('00:00') - timedelta(seconds=1)).isoformat() }}"
           # The Energy dashboard's statistics, and the car-from-roof sensor.
           ids:
