@@ -35,6 +35,13 @@ browser ──HTTPS──▶ Cloudflare (Access) ──tunnel──▶ Cloudflar
   as a proxy. HA's log says "not set-up for reverse proxies" or "untrusted
   proxy", followed by the address it saw.
 - The add-on uses about 30–50 MB of RAM, which matters on the 1 GB Pi 3.
+- With no internet the add-on exits, and after a few restarts the
+  Supervisor's watchdog gives up and leaves it in state "error", so the tunnel
+  stays down when the internet comes back (21 November 2026, after a 7-hour
+  outage). The automation in `config/packages/cloudflared.yaml` checks every
+  15 minutes and starts it once `binary_sensor.cloudflared_running` (enabled
+  by hand; the Supervisor integration ships it disabled) has been off for
+  10 minutes.
 
 ## Claude Code MCP over HTTPS
 

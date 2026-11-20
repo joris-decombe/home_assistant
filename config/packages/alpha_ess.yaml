@@ -4,12 +4,18 @@
 # entities then stay unavailable until the entry is reloaded. Fixed upstream in
 # the 0.9.0 betas (library 0.0.21 raises, setup retries); this watchdog covers
 # it until then, and any other way the entry gets stuck.
+#
+# A reload can't fix a blocked IP: the developer app on open.alphaess.com
+# only accepts calls from the public IPs on its allowlist, and anything else
+# gets error 6009 ("request timestamp is not within the validity period"),
+# which looks like a clock problem but isn't. Add the new IP there after an
+# ISP or router change.
 # Copy to /config/packages/ and reload automations.
 
 automation:
   - id: alpha_ess_watchdog
     alias: Alpha ESS watchdog
-    description: Reloads Alpha ESS when its battery charge has been unavailable for 15 minutes.
+    description: Reloads Alpha ESS when its battery charge has been unavailable for 15 minutes, at most every 15 minutes.
     mode: single
     # A time pattern rather than a state trigger: after a restart the sensor
     # starts out unavailable, with no state change to trigger on.
@@ -24,12 +30,14 @@ automation:
           - unknown
         for:
           minutes: 15
-      # At most one reload an hour, so a long cloud outage doesn't mean a
-      # reload every 5 minutes.
+      # At most one reload every 15 minutes, so a long outage doesn't mean a
+      # reload every 5 minutes. It was an hour until 21 November 2026, when
+      # the last reload ran 12 minutes before the internet came back and
+      # solar stayed missing for most of the next hour.
       - condition: template
         value_template: >-
           {{ this.attributes.last_triggered is none
-             or now() - this.attributes.last_triggered > timedelta(hours=1) }}
+             or now() - this.attributes.last_triggered > timedelta(minutes=15) }}
     actions:
       - action: homeassistant.reload_config_entry
         target:

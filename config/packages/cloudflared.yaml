@@ -1,0 +1,29 @@
+# The Cloudflared add-on (remote access, home.dx2-66.com) can't reach
+# Cloudflare while the internet is down. It exits, the Supervisor's watchdog
+# restarts it a few times, then gives up and leaves it in state "error", so
+# remote access stays down after the internet comes back (21 November 2026,
+# after a 7-hour outage). This starts it again.
+# Needs binary_sensor.cloudflared_running (Supervisor integration, disabled by
+# default; enabled on 21 November 2026). Copy to /config/packages/ and reload
+# automations.
+
+automation:
+  - id: cloudflared_watchdog
+    alias: Cloudflared watchdog
+    description: Starts the Cloudflared add-on when it has been stopped for 10 minutes.
+    mode: single
+    # A time pattern, so it keeps retrying through a long outage: a start that
+    # fails leaves the sensor off, with no state change to trigger on.
+    triggers:
+      - trigger: time_pattern
+        minutes: /15
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.cloudflared_running
+        state: "off"
+        for:
+          minutes: 10
+    actions:
+      - action: hassio.app_start
+        data:
+          app: 9074a9fa_cloudflared

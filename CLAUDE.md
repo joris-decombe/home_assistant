@@ -276,7 +276,8 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
 - **Alpha ESS** (HACS v0.8.5, cloud) gets stuck if its API is down when HA
   starts: it loads with no inverters and never polls again.
   `config/packages/alpha_ess.yaml` reloads the entry when the battery charge
-  sensor has been unavailable for 15 minutes (at most hourly). Upstream fixes
+  sensor has been unavailable for 15 minutes (at most every 15 minutes, so
+  it recovers soon after an internet outage ends). Upstream fixes
   this in 0.9.0; wait for the stable release, as the betas change how charge
   schedules are written.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
@@ -298,6 +299,9 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
   Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.168.68:8123`
   stays the address for the wall phone, MCP and the Xiaomi sign-in.
+  After a long internet outage the Supervisor gives up restarting the add-on
+  (state "error"); `config/packages/cloudflared.yaml` starts it again once
+  `binary_sensor.cloudflared_running` has been off for 10 minutes.
 
 ## Raspberry Pi image builder
 
