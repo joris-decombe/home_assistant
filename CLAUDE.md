@@ -250,8 +250,13 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   15 October 2026. Hours HA missed show as hours with nothing, then one hour
   holding the energy that piled up: the script spreads it back (solar along
   the roof's usual day, the rest evenly) and marks those hours estimated.
-  Float noise can make a change -0.000000001, so anything above -0.05 counts
-  as 0. The page shows daily totals and an average day's solar, never hourly
+  It only spreads a catch-up that holds at least 0.15 kWh per hour covered
+  and 30% of an average day's solar for those hours; otherwise (the start of
+  the statistics, VM-era gaps, Alpha ESS not counting while stuck) the gap
+  stays empty for the page to estimate. Float noise can make a change
+  -0.000000001, so anything above -0.05 counts as 0. Every tag in the payload
+  template trims whitespace (`{%-`) and hours travel as compact lists, or 40+
+  days overrun HA's 256 KB template output. The page shows daily totals and an average day's solar, never hourly
   house use or live readings, so it doesn't show when anyone is home.
   `sensor.car_roof_power` splits the charger's power minute by minute (the
   car took at most what the house imported; the rest came from the roof),
