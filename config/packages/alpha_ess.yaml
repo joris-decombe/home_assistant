@@ -10,9 +10,28 @@
 # gets error 6009 ("request timestamp is not within the validity period"),
 # which looks like a clock problem but isn't. Add the new IP there after an
 # ISP or router change.
+#
+# Hours HA misses (internet down, HA restarting, the entry stuck) are filled
+# afterwards from the inverter's readings in the Alpha ESS cloud by
+# custom_components/alpha_ess_backfill, run hourly below. At :20, so the
+# hour before has its statistics, and before public_stats sends at 00:40.
 # Copy to /config/packages/ and reload automations.
 
+alpha_ess_backfill:
+
 automation:
+  - id: alpha_ess_backfill
+    alias: Alpha ESS backfill
+    description: Fills missed Alpha ESS hours in the statistics from the Alpha ESS cloud.
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: 20
+    actions:
+      - action: alpha_ess_backfill.run
+        data:
+          hours: 48
+
   - id: alpha_ess_watchdog
     alias: Alpha ESS watchdog
     description: Reloads Alpha ESS when its battery charge has been unavailable for 15 minutes, at most every 15 minutes.

@@ -257,6 +257,9 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   compact lists, or 40+ days overrun HA's 256 KB template output. The page
   shows daily totals and an average day's solar, never hourly house use or
   live readings, so it doesn't show when anyone is home.
+  Since 21 November 2026 `alpha_ess_backfill` (see Alpha ESS below) fills
+  Alpha ESS's missed and frozen hours from the cloud within the hour, so
+  the spreading is left for gaps the cloud can't fill.
   `sensor.car_roof_power` splits the charger's power minute by minute (the
   car took at most what the house imported; the rest came from the roof),
   integrated into `sensor.car_energy_from_the_roof`, whose hourly statistics
@@ -277,7 +280,25 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   starts: it loads with no inverters and never polls again.
   `config/packages/alpha_ess.yaml` reloads the entry when the battery charge
   sensor has been unavailable for 15 minutes (at most every 15 minutes, so
-  it recovers soon after an internet outage ends). Upstream fixes
+  it recovers soon after an internet outage ends). Hours HA misses are
+  filled afterwards by **`alpha_ess_backfill`** (`config/custom_components/`,
+  service `alpha_ess_backfill.run`, hourly at :20 from the same package): the
+  inverter keeps recording while offline and uploads later, so the cloud's
+  per-minute readings (`getOneDayPowerBySn`) give the real shape of the gap.
+  Gaps are missing hours and **frozen** hours (Alpha ESS can keep its last
+  values for days instead of going unavailable; an hour where
+  `instantaneous_load` didn't move at all counts as frozen). It spreads the
+  catch-up hour's energy over the gap along the readings (sums after the gap
+  stay as they were), or uses the cloud's energy when the catch-up is clearly
+  short (a daily meter that reset during the gap), moving later sums by the
+  difference, and writes power means too. It uses the Alpha ESS entry's own
+  AppID and secret. `dry_run: true` shows what it would do; `start`/`end`
+  (at most 7 days) refill a range, for older gaps or to redo a fill. Runs
+  stay small for the Pi: `hours` is at most 168 (a 35-day run took over 30 s
+  and pushed it into swap). Filled on 21 November 2026: 18–22 October, 6–7
+  November, 17–19 November (frozen for 48 h, then missing; HA had lost 33 kWh
+  of solar) and that morning's outage; each day came within ~5% of the
+  inverter's daily counters. Upstream fixes
   this in 0.9.0; wait for the stable release, as the betas change how charge
   schedules are written.
 - The user wants Alpha ESS controls **read-only** on dashboards (no
