@@ -22,11 +22,20 @@
 #
 # Hours Home Assistant missed: when it's down, or Alpha ESS gets stuck, the
 # statistics show hours with nothing, then one hour holding all the energy
-# that piled up (on 19 November 2026, 26 kWh of solar at 23:00). That energy
-# is spread back over the missed hours and that one: solar, export and
-# battery charge along the roof's usual day (the average for each hour), the
-# rest evenly. Those hours are sent marked estimated. Hours with no catch-up
-# yet (the gap is still open) aren't sent.
+# that piled up. That energy is spread back over the missed hours and that
+# one: solar, export and battery charge along the roof's usual day (the
+# average for each hour), the rest evenly. Those hours are sent marked
+# estimated. Hours with no catch-up yet (the gap is still open) aren't sent.
+#
+# Alpha ESS's counters start again from zero at midnight, so a catch-up only
+# holds its own day, and HA's change is wrong when the gap crosses midnight:
+# Alpha ESS was stuck from 11:00 on 17 November 2026 to 23:00 on the 19th, and
+# HA saw 26 kWh of solar (its reading went from 4 to 30) where the 19th had
+# made 30. So when a gap crosses midnight, the catch-up is the counter's
+# reading, spread over its own day from midnight, and the hours of the days
+# before stay empty: the page estimates those days. The car's meter doesn't
+# reset, but its catch-up lands in one hour too; when Evnex's sessions account
+# for it, the gap's hours take the sessions' charging instead of an even share.
 #
 # The only credential is a push secret: 32+ random characters, in the Pi's
 # secrets.yaml as
@@ -196,7 +205,7 @@ script:
           start_time: "{{ start }}"
           end_time: "{{ end }}"
           period: hour
-          types: [change]
+          types: [change, state]
           units:
             energy: kWh
         response_variable: hourly
@@ -209,10 +218,13 @@ script:
             {%- set ALPHA = ['solar', 'grid_in', 'grid_out', 'charge', 'discharge'] %}
             {%- set SUNNY = ['solar', 'grid_out', 'charge'] %}
             {#- Each statistic as {hour start (unix seconds): kWh}. #}
-            {%- set m = namespace(maps={}) %}
+            {#- Alpha ESS's readings too (kWh since midnight), for a catch-up after midnight. #}
+            {%- set m = namespace(maps={}, st={}) %}
             {%- for f in ALPHA + ['car', 'roof'] %}
               {%- set rows = s.get(ids[f], []) %}
-              {%- set m.maps = dict(m.maps, **{f: dict(zip(rows | map(attribute='start') | map('as_timestamp') | map('int') | list, rows | map(attribute='change') | list))}) %}
+              {%- set ts = rows | map(attribute='start') | map('as_timestamp') | map('int') | list %}
+              {%- set m.maps = dict(m.maps, **{f: dict(zip(ts, rows | map(attribute='change') | list))}) %}
+              {%- if f in ALPHA %}{%- set m.st = dict(m.st, **{f: dict(zip(ts, rows | map(attribute='state') | list))}) %}{%- endif %}
             {%- endfor %}
             {#- Every hour of the span. Alpha ESS is live in an hour when the house drew something from somewhere: it always does. #}
             {%- set t0 = as_timestamp(start) | int %}
@@ -226,10 +238,14 @@ script:
               {%- set T.live = T.live + [a.ok and (m.maps.solar[t] > 0 or m.maps.grid_in[t] > 0 or m.maps.discharge[t] > 0)] %}
               {%- set T.car = T.car + [m.maps.car.get(t) is not none] %}
             {%- endfor %}
-            {#- For each hour, the live hour that holds its energy: itself, or the catch-up after its gap. #}
-            {%- set C = namespace(a=[], c=[], na=none, nc=none) %}
+            {#- For each hour, the live hour that holds its energy: itself, or the catch-up after its gap. Alpha ESS's catch-up only holds its own day: a missed hour of an earlier day has none (C.over lists the catch-ups whose gap crossed midnight). #}
+            {%- set C = namespace(a=[], c=[], na=none, nc=none, over=[]) %}
             {%- for i in range(n - 1, -1, -1) %}
-              {%- if T.live[i] %}{%- set C.na = i %}{%- endif %}
+              {%- if T.live[i] %}{%- set C.na = i %}
+              {%- elif C.na is not none and T.hours[i] | timestamp_custom('%Y-%m-%d') != T.hours[C.na] | timestamp_custom('%Y-%m-%d') %}
+                {%- set C.over = C.over + [C.na] %}
+                {%- set C.na = none %}
+              {%- endif %}
               {%- if T.car[i] %}{%- set C.nc = i %}{%- endif %}
               {%- set C.a = [C.na] + C.a %}
               {%- set C.c = [C.nc] + C.c %}
@@ -249,7 +265,7 @@ script:
             {%- set G = namespace(a=[], c=[]) %}
             {%- for i in range(n) %}
               {%- if C.a[i] is not none %}{%- set G.a = G.a + [{'k': C.a[i], 'w': prof.d.get(T.hours[i] | timestamp_custom('%H') | int | string, 0)}] %}{%- endif %}
-              {%- if C.c[i] is not none %}{%- set G.c = G.c + [{'k': C.c[i]}] %}{%- endif %}
+              {%- if C.c[i] is not none %}{%- set G.c = G.c + [{'k': C.c[i], 't': T.hours[i]}] %}{%- endif %}
             {%- endfor %}
             {%- set W = namespace(sun={}, cnt={}, car={}) %}
             {%- for g in G.a | groupby('k') %}
@@ -272,6 +288,13 @@ script:
             {%- set SH = namespace(hour={}, day={}) %}
             {%- for g in S.rows | groupby('t') %}{%- set SH.hour = dict(SH.hour, **{g.grouper | string: g.list | map(attribute='kwh') | sum}) %}{%- endfor %}
             {%- for g in S.rows | groupby('day') %}{%- set SH.day = dict(SH.day, **{g.grouper: g.list | map(attribute='kwh') | sum}) %}{%- endfor %}
+            {#- A car gap the sessions account for (they hold its catch-up, give or take 0.5 kWh): its hours take the sessions' charging. #}
+            {%- set WS = namespace(d={}) %}
+            {%- for g in G.c | groupby('k') if g.list | count > 1 %}
+              {%- set q = namespace(s=0) %}
+              {%- for x in g.list %}{%- set q.s = q.s + SH.hour.get(x.t | string, 0) %}{%- endfor %}
+              {%- set WS.d = dict(WS.d, **{g.grouper | string: q.s >= (m.maps.car[T.hours[g.grouper]] or 0) - 0.5}) %}
+            {%- endfor %}
             {#- What the charger statistic holds for each day, to compare. #}
             {%- set CD = namespace(rows=[], day={}) %}
             {%- for t in T.hours %}{%- set CD.rows = CD.rows + [{'day': t | timestamp_custom('%Y-%m-%d'), 'kwh': [m.maps.car.get(t, 0) or 0, 0] | max}] %}{%- endfor %}
@@ -287,22 +310,33 @@ script:
                 {%- set k = ca | string %}
                 {%- set kc = cc | string %}
                 {%- set tc = T.hours[ca] %}
+                {%- set U = namespace(d={}) %}
+                {%- for f in ALPHA %}
+                  {%- set x = m.st[f].get(tc) %}
+                  {%- set U.d = dict(U.d, **{f: x if ca in C.over and x is number else m.maps[f][tc]}) %}
+                {%- endfor %}
                 {#- A real catch-up holds at least half the house's base load for every hour it covers, and 30% of the solar an average day would make in them. If not (the start of the statistics, a meter reset, Alpha ESS not counting while stuck), the gap stays empty for the page to estimate, and the catch-up is an ordinary hour. #}
                 {%- set spread = W.cnt[k] > 1
-                    and m.maps.solar[tc] + m.maps.grid_in[tc] + m.maps.discharge[tc] >= 0.15 * W.cnt[k]
-                    and m.maps.solar[tc] >= 0.3 * W.sun[k] %}
+                    and U.d.solar + U.d.grid_in + U.d.discharge >= 0.15 * W.cnt[k]
+                    and U.d.solar >= 0.3 * W.sun[k] %}
                 {%- if spread or i == ca %}
                 {%- set flat = (1 / W.cnt[k]) if spread else 1 %}
                 {%- set w = prof.d.get(t | timestamp_custom('%H') | int | string, 0) %}
                 {%- set sunny = (((w / W.sun[k]) if W.sun[k] > 0 else flat) if spread else 1) %}
                 {%- set v = namespace(d={}) %}
-                {%- for f in ALPHA %}{%- set v.d = dict(v.d, **{f: m.maps[f][tc] * (sunny if f in SUNNY else flat)}) %}{%- endfor %}
+                {%- for f in ALPHA %}{%- set v.d = dict(v.d, **{f: U.d[f] * (sunny if f in SUNNY else flat)}) %}{%- endfor %}
                 {%- set car = m.maps.car[T.hours[cc]] / W.car[kc] %}
                 {%- set est = spread or W.car[kc] > 1 %}
+                {%- if WS.d.get(kc, false) %}{%- set car = SH.hour.get(t | string, 0) %}{%- endif %}
                 {#- A day whose sessions hold more than the statistic (HA was down while the car charged): its charging comes from the sessions. #}
                 {%- if SH.day.get(day, 0) > CD.day.get(day, 0) + 0.5 %}
                   {%- set car = SH.hour.get(t | string, 0) %}
                   {%- set est = est or car > 0 %}
+                {%- endif %}
+                {#- More than the charger can do in an hour is its meter catching up (on 20 November 2026, 19.3 kWh at 09:00 for the two days before): that hour takes the sessions' charging, so its solar isn't lost with it. #}
+                {%- if car > 8 %}
+                  {%- set car = SH.hour.get(t | string, 0) %}
+                  {%- set est = true %}
                 {%- endif %}
                 {%- set split = car - [car, v.d.grid_in] | min %}
                 {%- set roof = m.maps.roof.get(t) if not est and m.maps.roof.get(t) is not none else split %}
