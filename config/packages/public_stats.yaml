@@ -261,7 +261,7 @@ script:
                 {%- set est = spread or W.car[kc] > 1 %}
                 {%- set split = car - [car, v.d.grid_in] | min %}
                 {%- set roof = m.maps.roof.get(t) if not est and m.maps.roof.get(t) is not none else split %}
-                {%- set roof = [[roof, 0] | max, car] | min %}
+                {%- set roof = [[roof, 0] | max, [car, 0] | max] | min %}
                 {%- set vals = [v.d.solar, v.d.grid_in, v.d.grid_out, v.d.charge, v.d.discharge, car] %}
                 {#- Float noise can leave -0.000000001; a meter reset is far below -0.05. #}
                 {%- if vals | min >= -0.05 and v.d.solar <= 6 and v.d.grid_in <= 25 and v.d.grid_out <= 6 and v.d.charge <= 6 and v.d.discharge <= 6 and car <= 8 %}
