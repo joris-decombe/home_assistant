@@ -290,6 +290,12 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   entries for the hubs are disabled on purpose (both on one hub caused
   errors). Never print or store the Tapo password outside HA. See
   `docs/tapo-cameras.md`.
+  **`tapo_events` is disabled since 20 November 2026, 21:52** (config entry
+  "Tapo hub camera events", disabled by user): from 20:47 HA ran out of memory
+  and restarted every 5–7 minutes, and within a minute of disabling it swap
+  fell from full and HA stayed up. Clips and the latest-image entities stop
+  while it's off; Tapo Control (live view) is untouched. How to restore it,
+  and what to fix first: `docs/tapo-cameras.md`, "Disabled: out of memory".
 - **Remote access:** `https://home.dx2-66.com` via the Cloudflared add-on, behind
   Cloudflare Access. See `docs/remote-access.md`. Local `http://192.168.168.68:8123`
   stays the address for the wall phone, MCP and the Xiaomi sign-in.

@@ -133,3 +133,41 @@ slower than the house hub's.
 Both show `image.*_last_event` with a play button that opens the SD live
 stream in a dialog, plus a 24 h logbook of the `event.*_detection` entities.
 The "Clips" tiles open the camera's folder in the Media panel.
+
+## Disabled: out of memory (20 November 2026)
+
+**State:** the `tapo_events` config entry ("Tapo hub camera events",
+`01M53JADTAJH0SEN6X8JSJ29BR`) is disabled, by user, since 21:52 on
+20 November 2026. While it's off, no clips are copied to `/media/tapo` and the
+latest-image entities don't update. The clips already there (about 1,650,
+newest 17:54 Front Door and 17:39 Garage that day) stay, and so do the hubs'
+own recordings. Tapo Control (live view, controls) is a separate integration
+and keeps working.
+
+**Why:** from 20:47 that evening Home Assistant ran out of memory and was
+killed (by the kernel, or by the Supervisor watchdog once it stopped
+answering) every 5–7 minutes, about 4 minutes after each start: the HA
+process reached about 280 MB of RAM plus 570 MB of swap, with the 768 MB of
+zram full. After each start, `tapo_events` backfills the whole retention
+window (7 days × 2 cameras, about 120 clips a day each) and its recording
+sync failed on both cameras with `'result'`. Within a minute of disabling the
+entry, swap fell from full (767 MB) to about 540 MB and kept falling, HA held
+at about 290 MB, and it stayed up with no restarts. Which part of the sync
+holds the memory isn't pinned down yet: pytapo's downloader buffers a clip's
+stream in memory, and the backfill lists and syncs every day at start.
+
+Also that evening, `script.public_stats_send`'s saved traces (5.9 MB,
+reloaded at every start) were moved aside to
+`/config/trace.saved_traces.bak-20261120` and the script now keeps one trace;
+that helped but didn't stop the restarts.
+
+**To restore:** Settings → Devices & services → Tapo hub camera events →
+⋮ → Enable. Or over the WebSocket API:
+`{"type": "config_entries/disable", "entry_id": "01M53JADTAJH0SEN6X8JSJ29BR", "disabled_by": null}`.
+Then watch memory for 10 minutes (`free -m` and `docker stats homeassistant`
+over host SSH): if swap climbs back to full, disable it again.
+
+**Before turning it back on for good**, make the start cheaper: backfill a
+day or two instead of the whole retention window, one camera at a time, and
+stop after a failed sync instead of retrying it at every start; and check
+that a download streams to disk rather than holding the clip in memory.
