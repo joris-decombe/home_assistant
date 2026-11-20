@@ -104,6 +104,8 @@ automation:
     alias: Send the solar hours to power.dx2-66.com
     description: Sends yesterday's hours and fills missed hours of the 13 days before.
     mode: single
+    trace:
+      stored_traces: 1
     triggers:
       # Yesterday's last hour is in the statistics by about 00:12.
       - trigger: time
@@ -117,6 +119,8 @@ automation:
     alias: Retry the solar hours for power.dx2-66.com
     description: Sends yesterday again, every hour and at start, until it has gone through whole.
     mode: single
+    trace:
+      stored_traces: 1
     triggers:
       - trigger: time_pattern
         minutes: 47
@@ -137,6 +141,11 @@ script:
     alias: Send solar hours to power.dx2-66.com
     description: Sends finished days hour by hour from the long-term statistics. Yesterday's hours replace what's there; older days only gain hours they don't have.
     icon: mdi:solar-power-variant
+    # A run's trace holds every hour of statistics it read (about 1 MB for
+    # 60 days), and HA keeps 5 by default and reloads them at start: on the
+    # 1 GB Pi that tipped HA into running out of memory on 20 November 2026.
+    trace:
+      stored_traces: 1
     mode: queued
     max: 3
     fields:
