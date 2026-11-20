@@ -1,0 +1,11 @@
+{
+  "domain": "alpha_ess_backfill",
+  "name": "Alpha ESS backfill",
+  "codeowners": [],
+  "dependencies": ["recorder"],
+  "after_dependencies": ["alphaess"],
+  "documentation": "https://github.com/joris-decombe/home_assistant",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}

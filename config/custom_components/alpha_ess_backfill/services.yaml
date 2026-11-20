@@ -1,0 +1,23 @@
+run:
+  fields:
+    hours:
+      required: false
+      default: 48
+      example: 48
+      selector:
+        number:
+          min: 2
+          max: 168
+    start:
+      required: false
+      selector:
+        datetime:
+    end:
+      required: false
+      selector:
+        datetime:
+    dry_run:
+      required: false
+      default: false
+      selector:
+        boolean:
