@@ -243,27 +243,26 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   finished day, hour by hour, to `https://power.dx2-66.com/push` (the Worker
   `dx2-66-power` in the dx2-66 repo), all from the recorder's long-term
   statistics through `recorder.get_statistics`. `script.public_stats_send`
-  runs at 00:40 for 14 days (yesterday is replaced, older days only gain hours
-  the Worker doesn't have), then hourly and at start until yesterday has gone
-  through whole (`input_text.public_stats_pushed`). Run it by hand with a
-  bigger `days` (60 at most) for older history; the Pi's statistics start on
-  15 October 2026. Hours HA missed show as hours with nothing, then one hour
-  holding the energy that piled up: the script spreads it back (solar along
-  the roof's usual day, the rest evenly) and marks those hours estimated.
-  It only spreads a catch-up that holds at least 0.15 kWh per hour covered
-  and 30% of an average day's solar for those hours; otherwise (the start of
-  the statistics, VM-era gaps, Alpha ESS not counting while stuck) the gap
-  stays empty for the page to estimate. Float noise can make a change
-  -0.000000001, so anything above -0.05 counts as 0. Every tag in the payload
-  template trims whitespace (`{%-`) and hours travel as compact lists, or 40+
-  days overrun HA's 256 KB template output. The page shows daily totals and an average day's solar, never hourly
-  house use or live readings, so it doesn't show when anyone is home.
+  runs at 00:40 for yesterday and the 2 days before (yesterday is replaced,
+  older days only gain hours the page doesn't have, or better estimates), then
+  hourly and at start until yesterday has gone through whole
+  (`input_text.public_stats_pushed`). Run it by hand with a bigger `days`
+  (14 at most); the Pi's statistics start on 15 October 2026. A gap in the
+  statistics ends with one hour holding what piled up: the script spreads it
+  back and marks those hours estimated. Alpha ESS's counters reset at
+  midnight, so a catch-up only covers its own day, and the car's charging in a
+  gap comes from Evnex's sessions. `docs/power-page.md` has the rules, how to
+  fix a wrong day on the page, and the 17-19 November 2026 freeze. Every tag
+  in the payload template trims whitespace (`{%-`) and hours travel as
+  compact lists, or 40+ days overrun HA's 256 KB template output. The page
+  shows daily totals and an average day's solar, never hourly house use or
+  live readings, so it doesn't show when anyone is home.
   `sensor.car_roof_power` splits the charger's power minute by minute (the
   car took at most what the house imported; the rest came from the roof),
   integrated into `sensor.car_energy_from_the_roof`, whose hourly statistics
   are the car-from-roof sent. Its one credential, `public_stats_push_auth` in
-  the Pi's `secrets.yaml`, can only replace today's or yesterday's hours and
-  fill missing hours of older days.
+  the Pi's `secrets.yaml`, can only replace today's or yesterday's hours, and
+  on older days fill missing hours or replace an estimate with an estimate.
 - **Yoto** (core integration, cloud, found by DHCP): one player, "Jodie", in
   Jodie's room (`media_player.jodie`, battery, headphones, and day/night-mode
   volume, colour and brightness controls). **Spotify** (core, OAuth): the
