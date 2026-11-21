@@ -152,7 +152,14 @@ the panorama no longer lines up under it.
   Battery sensor card on both Home views shows the rate too.
 - `sensor.car_charger`: the Evnex charger's state in words ("Charging 7.2 kW",
   "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
-  The Car section's *Charge now* switch is the one charger control on it.
+  The Car section's *Charge now* switch is the one charger control on it:
+  `switch.car_charge_now`, a template switch over Evnex's (which only flips
+  once the cloud confirms) through `script.car_charge_now_on`/`_off`.
+- **Press feedback:** slow controls (ceiling lights, Charge now, music moods,
+  Yoto cards) go through a script that waits until the device has changed,
+  and their entity shows an hourglass (`mdi:timer-sand`) or "Starting…"
+  while it runs (`script.music_mood_1..3`, `script.yoto_play`, the ceiling
+  scripts). Dashboards call those scripts, not the device actions.
 
 Its **Kids** view has Jodie's Yoto player, one-tap story, podcast and radio
 tiles (`media_player.play_media` with `yoto://card/<id>`, IDs from the
@@ -206,9 +213,14 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   **Tuya Local** (`make-all/tuya-local`, a HACS custom repository), local at
   `.54` (protocol 3.3). It's paired in Smart Life, whose QR sign-in fetched
   its local key; re-pairing changes the key. It reports no power or energy.
-  `config/packages/jodie_heater.yaml` turns it off at 07:00 and, if it's on,
-  its display off at 20:30. It sits with the
-  heat pumps on all three dashboards.
+  `config/packages/jodie_heater.yaml` turns it off from 07:00, retrying
+  every 5 minutes (and after an HA restart) until 07:30, when it notifies
+  `mobile_app_plop` if it's still not off, and, if it's on, its display off at
+  20:30; its watchdog reloads the entry after 15 minutes unavailable. On 22
+  November 2026 it acked every command but acted on none, reporting the
+  same state, even after a reload: only switching it off at the wall clears
+  that. It sits with the heat pumps on all three dashboards (no header
+  badge: removed on request).
 - **Earthquakes:** GeoNet NZ Quakes (core, set up in the UI: 300 km, MMI 3+,
   the last 7 days) makes one `geo_location` entity per quake, for the
   **Quakes** tab on all three dashboards. `config/packages/earthquakes.yaml`
@@ -216,8 +228,18 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   is the second-highest MMI among the ~36 strong-motion sensors within 15 km
   in the last hour, and `binary_sensor.wellington_earthquake` (MMI 3+) shows
   an alert card at the top of each Home view.
+- **Swimming:** `config/packages/swimming.yaml` reads LAWA's "Can I swim
+  here?" pages (no API) for Island Bay's and Oriental Bay's three sites each,
+  every 30 minutes, into `sensor.lawa_*` (`risk|label|when|warning`) and one
+  word per bay (`sensor.swimming_island_bay`, `sensor.swimming_oriental_bay`:
+  Swim, Caution, Don't swim, No data). Tiles under Weather on the wall phone
+  and the iPad, coloured by state.
 - **Xiaomi Home** (official, HACS) on the **Singapore** server: Mi Home's New
   Zealand region lives there. The China server only held stale devices.
+  LAN control is on (options flow, network card `enu1u1`, LAN subscription
+  on, since 22 November 2026), but it only covers the Mi fan and the Hub 2:
+  the Yeelight lamps and the vacuum aren't supported, and central hub mode
+  is China-only. Everything else still goes through the cloud.
 - **Alpha ESS** (solar and battery, in the basement), **Evnex** EV charger, and
   TP-Link/Tapo plugs. The Energy dashboard's devices and their live `stat_rate`
   power sensors feed the `power-sankey` cards.

@@ -172,17 +172,20 @@ template:
   # The three moods of the moment, for the dashboards' tiles: named after the
   # mood, showing the playlist it plays next (the in-season part of its pool,
   # at the mood's place in the rotation). Each reads its slot from its entity
-  # ID (sensor.music_mood_1..3).
+  # ID (sensor.music_mood_1..3). While its tile's script runs
+  # (script.music_mood_1..3), it's named "Starting…" with an hourglass.
   - sensor:
       - unique_id: music_mood_1
         default_entity_id: sensor.music_mood_1
         <<: &mood_slot
           name: >
             {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
-            {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('name', 'Music') }}
+            {% if is_state('script.music_mood_' ~ this.entity_id[-1], 'on') %}Starting…
+            {% else %}{{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('name', 'Music') }}{% endif %}
           icon: >
             {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
-            {{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('icon', 'mdi:music') }}
+            {% if is_state('script.music_mood_' ~ this.entity_id[-1], 'on') %}mdi:timer-sand
+            {% else %}{{ (state_attr('sensor.music_moods', 'catalogue') or {}).get(key, {}).get('icon', 'mdi:music') }}{% endif %}
           state: >
             {% set key = (state_attr('sensor.music_moods', 'moods') or ['', '', ''])[this.entity_id[-1] | int(1) - 1] %}
             {% set mood = (state_attr('sensor.music_moods', 'catalogue') or {}).get(key) %}
@@ -270,7 +273,35 @@ script:
         target:
           entity_id: "{{ states('sensor.music_speaker') }}"
 
-  # The mood tiles: play the next playlist of one of the moment's moods
+  # The mood tiles' taps: one script per tile, so its tile can show it's
+  # starting (see sensor.music_mood_1..3). Each waits for music_play_mood,
+  # which restarts on a second tap: the earlier tile's script then ends.
+  music_mood_1:
+    alias: Music mood 1
+    icon: mdi:playlist-play
+    mode: restart
+    sequence:
+      - action: script.music_play_mood
+        data:
+          slot: 1
+  music_mood_2:
+    alias: Music mood 2
+    icon: mdi:playlist-play
+    mode: restart
+    sequence:
+      - action: script.music_play_mood
+        data:
+          slot: 2
+  music_mood_3:
+    alias: Music mood 3
+    icon: mdi:playlist-play
+    mode: restart
+    sequence:
+      - action: script.music_play_mood
+        data:
+          slot: 3
+
+  # Play the next playlist of one of the moment's moods
   # (sensor.music_mood_<slot>), shuffled from a random track, in the rooms
   # already switched on (the dining room if none), and move that mood's
   # rotation on.

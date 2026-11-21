@@ -1,0 +1,119 @@
+# Can I swim here? LAWA (Land, Air, Water Aotearoa) for the beaches near
+# home: Island Bay's three sites and Oriental Bay's three (Oriental Parade).
+# Greater Wellington predicts each site's risk hourly through the day, all
+# year (samples are only taken in summer), and posts warnings such as the
+# Moa Point wastewater discharge. LAWA has no public API, so this reads the
+# status off each site's page (~58 KB of HTML), every 30 minutes.
+# Copy to /config/packages/ and reload REST and template entities.
+#
+# Each site's raw sensor packs what its page says into one line:
+#   <risk>|<label>|<when>|<warning>
+#   e.g. "low|Suitable for swimming|8:15 am today|1"
+# risk: vlow, low, medium or high (LAWA's colours: green, green, amber, red),
+# or nodata; the label is LAWA's own wording; warning is 1 while the page
+# shows "Warning in effect". sensor.swimming_island_bay and
+# sensor.swimming_oriental_bay sum up each bay: its worst site, in one word.
+
+rest:
+  - resource: &lawa_page https://www.lawa.org.nz/explore-data/wellington-region/swimming/island-bay-at-surf-club/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: &lawa_headers
+      User-Agent: Mozilla/5.0 (Home Assistant)
+    sensor:
+      - name: LAWA Island Bay Surf Club
+        unique_id: lawa_island_bay_surf_club
+        icon: mdi:swim
+        value_template: &lawa_parse >-
+          {%- set risk = value | regex_findall('grade-icon--size-header (?:risk-([a-z]+)|(nodata))-') | first | default(['', 'nodata']) %}
+          {%- set label = value | regex_findall('grade-icon--label"><span>([^<]+)<') | first | default('Not available') %}
+          {%- set when = value | regex_findall('id="sample-date">\s*<p>[^<]*<br>([^<]+)</p>') | first | default('') %}
+          {{- (risk | join('')) ~ '|' ~ (label | trim) ~ '|' ~ (when | trim) ~ '|' ~ (1 if 'Warning in effect' in value else 0) }}
+  - resource: https://www.lawa.org.nz/explore-data/wellington-region/swimming/island-bay-at-derwent-street/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: *lawa_headers
+    sensor:
+      - name: LAWA Island Bay Derwent Street
+        unique_id: lawa_island_bay_derwent_street
+        icon: mdi:swim
+        value_template: *lawa_parse
+  - resource: https://www.lawa.org.nz/explore-data/wellington-region/swimming/island-bay-at-reef-st-recreation-ground/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: *lawa_headers
+    sensor:
+      - name: LAWA Island Bay Reef Street
+        unique_id: lawa_island_bay_reef_street
+        icon: mdi:swim
+        value_template: *lawa_parse
+  - resource: https://www.lawa.org.nz/explore-data/wellington-region/swimming/oriental-bay-at-freyberg-beach/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: *lawa_headers
+    sensor:
+      - name: LAWA Oriental Bay Freyberg Beach
+        unique_id: lawa_oriental_bay_freyberg_beach
+        icon: mdi:swim
+        value_template: *lawa_parse
+  - resource: https://www.lawa.org.nz/explore-data/wellington-region/swimming/oriental-bay-at-band-rotunda/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: *lawa_headers
+    sensor:
+      - name: LAWA Oriental Bay Band Rotunda
+        unique_id: lawa_oriental_bay_band_rotunda
+        icon: mdi:swim
+        value_template: *lawa_parse
+  - resource: https://www.lawa.org.nz/explore-data/wellington-region/swimming/oriental-bay-at-wishing-well/swimsite
+    scan_interval: 1800
+    timeout: 30
+    headers: *lawa_headers
+    sensor:
+      - name: LAWA Oriental Bay Wishing Well
+        unique_id: lawa_oriental_bay_wishing_well
+        icon: mdi:swim
+        value_template: *lawa_parse
+
+# One sensor per bay for the dashboards: the worst of its sites in one word
+# (Swim, Caution, Don't swim, No data), the icon to match, and attributes for
+# the tile's second line (note: "warning in effect", else when LAWA last
+# predicted) and the more-info dialog (each site's own status). Each reads
+# its sites from its entity ID (sensor.swimming_<bay>).
+template:
+  - sensor:
+      - name: Island Bay
+        unique_id: swimming_island_bay
+        default_entity_id: sensor.swimming_island_bay
+        <<: &bay
+          state: >
+            {%- set sites = {'island_bay': ['surf_club', 'derwent_street', 'reef_street'], 'oriental_bay': ['freyberg_beach', 'band_rotunda', 'wishing_well']}[this.entity_id[16:]] %}
+            {%- set rank = {'vlow': 1, 'low': 1, 'medium': 2, 'high': 3} %}
+            {%- set ns = namespace(worst=0) %}
+            {%- for s in sites %}
+              {%- set ns.worst = [ns.worst, rank.get(states('sensor.lawa_' ~ this.entity_id[16:] ~ '_' ~ s).split('|')[0], 0)] | max %}
+            {%- endfor %}
+            {{ ['No data', 'Swim', 'Caution', "Don't swim"][ns.worst] }}
+          icon: >
+            {{ {'Swim': 'mdi:swim', 'Caution': 'mdi:alert', "Don't swim": 'mdi:close-octagon'}
+               .get(this.state, 'mdi:help-circle-outline') }}
+          attributes:
+            note: >
+              {%- set sites = {'island_bay': ['surf_club', 'derwent_street', 'reef_street'], 'oriental_bay': ['freyberg_beach', 'band_rotunda', 'wishing_well']}[this.entity_id[16:]] %}
+              {%- set raw = sites | map('regex_replace', '^', 'sensor.lawa_' ~ this.entity_id[16:] ~ '_') | map('states') | select('search', '[|]') | list %}
+              {%- if raw | select('search', '[|]1$') | list %}warning in effect
+              {%- elif raw %}{{ raw[0].split('|')[2] | replace(' today', '') }}
+              {%- endif %}
+            sites: >
+              {%- set sites = {'island_bay': ['surf_club', 'derwent_street', 'reef_street'], 'oriental_bay': ['freyberg_beach', 'band_rotunda', 'wishing_well']}[this.entity_id[16:]] %}
+              {%- set ns = namespace(out={}) %}
+              {%- for s in sites %}
+                {%- set p = states('sensor.lawa_' ~ this.entity_id[16:] ~ '_' ~ s).split('|') %}
+                {%- set ns.out = dict(ns.out.items() | list + [(s | replace('_', ' ') | title,
+                    (p[1] if p | count > 3 else 'Not available') ~ (' (warning in effect)' if p[-1] == '1' else ''))]) %}
+              {%- endfor %}
+              {{ ns.out }}
+      - name: Oriental Bay
+        unique_id: swimming_oriental_bay
+        default_entity_id: sensor.swimming_oriental_bay
+        <<: *bay

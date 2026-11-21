@@ -1,6 +1,13 @@
 # Wall-phone dashboard helpers: the hourly forecast sensor, the ceiling
 # lights' Off / Night / Full control with its one-tap scripts, today's
-# heat-pump energy, the battery's charge rate and the car charger's status.
+# heat-pump energy, the battery's charge rate, the car charger's status and
+# the dashboards' Charge now switch.
+#
+# Press feedback: the slow controls (ceiling lights, Charge now, the music
+# moods, Yoto cards) go through a script that waits until the device has
+# actually changed, and their dashboard entity shows an hourglass
+# (mdi:timer-sand) or "Starting…" while that script runs. A tap shows at
+# once, and a failed one ends the script, so it never sticks.
 # The iPad dashboard uses them too. Loaded as a package: configuration.yaml on
 # the Pi has `homeassistant: packages: !include_dir_named packages`. Copy this
 # file to /config/packages/ and reload template entities.
@@ -51,8 +58,9 @@ template:
       - name: Ceiling lights
         unique_id: wall_phone_ceiling_lights_mode
         icon: >
-          {{ {'Night': 'mdi:weather-night', 'Full': 'mdi:ceiling-light-multiple'}
-             .get(this.state, 'mdi:ceiling-light-multiple-outline') }}
+          {% if is_state('script.ceiling_lights_toggle', 'on') or is_state('script.ceiling_lights_flip_mode', 'on') %}mdi:timer-sand
+          {% else %}{{ {'Night': 'mdi:weather-night', 'Full': 'mdi:ceiling-light-multiple'}
+                       .get(this.state, 'mdi:ceiling-light-multiple-outline') }}{% endif %}
         options: "{{ ['Off', 'Night', 'Full'] }}"
         state: >
           {% set on = ['light.yeelink_sg_594287415_ceiling22_s_2_light',
@@ -125,7 +133,8 @@ template:
         state: "{{ states('sensor.alphaess_instantaneous_battery_soc') | float | round(1) }}"
 
   # The Evnex charger in one word or two ("Charging 7.2 kW", "Paused by car",
-  # "Unplugged"), for the Car cards on the wall phone and iPad. The connector
+  # "Unplugged"), for the Car cards on the wall phone and iPad. While a tap on
+  # Charge now is on its way: "Asking the charger…". The connector
   # status is OCPP's: suspended_ev means the car stopped taking power (full or
   # its own schedule), suspended_evse that the charger is holding off (its
   # off-peak schedule). Evnex polls its cloud, so it lags by up to ~5 minutes.
@@ -135,6 +144,7 @@ template:
         default_entity_id: sensor.car_charger
         icon: >
           {{ {'Paused by car': 'mdi:car-electric', 'Finished': 'mdi:car-electric',
+              'Asking the charger…': 'mdi:timer-sand',
               'Waiting to charge': 'mdi:timer-sand', 'Starting': 'mdi:ev-plug-type2',
               'Plugged in': 'mdi:ev-plug-type2', 'Unplugged': 'mdi:power-plug-off-outline',
               'Fault': 'mdi:alert-circle-outline', 'Offline': 'mdi:cloud-off-outline'}
@@ -142,7 +152,8 @@ template:
         state: >
           {% set c = 'sensor.garage_joris_home_charger_' %}
           {% set st = states(c ~ 'connector_status') %}
-          {% if is_state(c ~ 'charger_network_status', 'offline') %}Offline
+          {% if is_state('script.car_charge_now_on', 'on') or is_state('script.car_charge_now_off', 'on') %}Asking the charger…
+          {% elif is_state(c ~ 'charger_network_status', 'offline') %}Offline
           {% elif st == 'charging' or is_state('binary_sensor.garage_joris_home_charger_charging', 'on') %}Charging {{ '%.1f' | format(states(c ~ 'metered_power') | float(0)) }} kW
           {% elif st == 'suspended_ev' %}Paused by car
           {% elif st == 'suspended_evse' %}Waiting to charge
@@ -152,13 +163,72 @@ template:
           {% elif is_state('binary_sensor.garage_joris_home_charger_plugged_in', 'on') %}Plugged in
           {% else %}Unplugged{% endif %}
 
+  # Charge now for the dashboards. The Evnex switch only changes once its
+  # cloud confirms (seconds, sometimes minutes), so a tap looked like it did
+  # nothing. This one flips at once, with an hourglass until the charger has
+  # followed (script.car_charge_now_on/off). Automations use the Evnex
+  # switch itself.
+  - switch:
+      - name: Charge now
+        unique_id: car_charge_now
+        default_entity_id: switch.car_charge_now
+        icon: >
+          {{ 'mdi:timer-sand' if is_state('script.car_charge_now_on', 'on')
+             or is_state('script.car_charge_now_off', 'on') else 'mdi:lightning-bolt' }}
+        availability: "{{ has_value('switch.garage_joris_home_charger_charge_now') }}"
+        state: >
+          {{ is_state('script.car_charge_now_on', 'on')
+             or (is_state('switch.garage_joris_home_charger_charge_now', 'on')
+                 and not is_state('script.car_charge_now_off', 'on')) }}
+        turn_on:
+          - action: script.turn_on
+            target:
+              entity_id: script.car_charge_now_on
+        turn_off:
+          - action: script.turn_on
+            target:
+              entity_id: script.car_charge_now_off
+
 script:
+  # Charge now on/off for switch.car_charge_now: each cancels the other, then
+  # waits (up to 5 minutes) for the Evnex switch to show it.
+  car_charge_now_on:
+    alias: Charge now on
+    icon: mdi:lightning-bolt
+    mode: restart
+    sequence:
+      - action: script.turn_off
+        target:
+          entity_id: script.car_charge_now_off
+      - action: switch.turn_on
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'on') }}"
+        timeout: "00:05:00"
+
+  car_charge_now_off:
+    alias: Charge now off
+    icon: mdi:lightning-bolt-outline
+    mode: restart
+    sequence:
+      - action: script.turn_off
+        target:
+          entity_id: script.car_charge_now_on
+      - action: switch.turn_off
+        target:
+          entity_id: switch.garage_joris_home_charger_charge_now
+      - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'off') }}"
+        timeout: "00:05:00"
+
   # One tap on the wall phone's ceiling-light card: both lights on (in their
-  # last mode) or both off.
+  # last mode) or both off. Both ceiling scripts wait (up to 20 s) for the
+  # lights to report the change, for the card's hourglass.
   ceiling_lights_toggle:
     alias: Ceiling lights on/off
     icon: mdi:ceiling-light-multiple
     sequence:
+      - variables:
+          was: "{{ states('select.ceiling_lights') }}"
       - if: "{{ is_state('select.ceiling_lights', 'Off') }}"
         then:
           - action: light.turn_on
@@ -172,14 +242,20 @@ script:
               entity_id: select.ceiling_lights
             data:
               option: "Off"
+      - wait_template: "{{ states('select.ceiling_lights') != was }}"
+        timeout: 20
 
   # One tap on the card's icon: Night <-> Full (Night when off).
   ceiling_lights_flip_mode:
     alias: Ceiling lights night/full
     icon: mdi:weather-night
     sequence:
+      - variables:
+          option: "{{ 'Full' if is_state('select.ceiling_lights', 'Night') else 'Night' }}"
       - action: select.select_option
         target:
           entity_id: select.ceiling_lights
         data:
-          option: "{{ 'Full' if is_state('select.ceiling_lights', 'Night') else 'Night' }}"
+          option: "{{ option }}"
+      - wait_template: "{{ is_state('select.ceiling_lights', option) }}"
+        timeout: 20

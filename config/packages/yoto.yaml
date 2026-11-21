@@ -1,8 +1,11 @@
 # Jodie's Yoto series for the wall phone's Kids view: one select per series
 # of Yoto Club cards in her library. Picking a card plays it on her player.
 # The state stays unknown so the same card can be picked again. Card IDs come
-# from the player's media browser (yoto://card/<id>). Copy to /config/packages/
-# and reload template entities.
+# from the player's media browser (yoto://card/<id>). Every card, the Kids
+# view's one-tap tiles too, plays through script.yoto_play, which waits for
+# the player to start: the view's live line says "starting a card…" until it
+# does (the cloud takes a few seconds). Copy to /config/packages/ and reload
+# template entities and scripts.
 
 template:
   - select:
@@ -18,12 +21,12 @@ template:
                 'Dinosaur': yoto://card/7T89G
                 'Enchanted': yoto://card/1yi0s
                 'Outer Space': yoto://card/8Mr02
-          - action: media_player.play_media
+          - action: script.turn_on
             target:
-              entity_id: media_player.jodie
+              entity_id: script.yoto_play
             data:
-              media_content_id: "{{ cards[option] }}"
-              media_content_type: music
+              variables:
+                card: "{{ cards[option] }}"
       - name: Yoto Classics
         unique_id: yoto_classics
         icon: mdi:book-open-variant
@@ -38,12 +41,12 @@ template:
                 'The Jungle Book': yoto://card/j8b4j
                 'The Wonderful Wizard of Oz': yoto://card/97Weq
                 'Treasure Island': yoto://card/eDwz6
-          - action: media_player.play_media
+          - action: script.turn_on
             target:
-              entity_id: media_player.jodie
+              entity_id: script.yoto_play
             data:
-              media_content_id: "{{ cards[option] }}"
-              media_content_type: music
+              variables:
+                card: "{{ cards[option] }}"
       - name: Yoto BrainBots
         unique_id: yoto_brainbots
         icon: mdi:robot-happy
@@ -85,12 +88,12 @@ template:
                 'Transportation - Planes': yoto://card/1fHEE
                 'Transportation - Space Vehicles': yoto://card/c6Amp
                 'Transportation - Trains': yoto://card/LIpRt
-          - action: media_player.play_media
+          - action: script.turn_on
             target:
-              entity_id: media_player.jodie
+              entity_id: script.yoto_play
             data:
-              media_content_id: "{{ cards[option] }}"
-              media_content_type: music
+              variables:
+                card: "{{ cards[option] }}"
       - name: Yoto Dinosaurs
         unique_id: yoto_dinosaurs
         icon: mdi:google-downasaur
@@ -108,12 +111,12 @@ template:
                 'Stegosaurus': yoto://card/18zSS
                 'Triceratops': yoto://card/brPoi
                 'Tyrannosaurus rex': yoto://card/hj943
-          - action: media_player.play_media
+          - action: script.turn_on
             target:
-              entity_id: media_player.jodie
+              entity_id: script.yoto_play
             data:
-              media_content_id: "{{ cards[option] }}"
-              media_content_type: music
+              variables:
+                card: "{{ cards[option] }}"
       - name: Yoto The Solar System
         unique_id: yoto_solar_system
         icon: mdi:orbit
@@ -128,9 +131,33 @@ template:
                 'Saturn': yoto://card/6lRWr
                 'The Sun': yoto://card/aVoNj
                 'Venus': yoto://card/1aJiI
-          - action: media_player.play_media
+          - action: script.turn_on
             target:
-              entity_id: media_player.jodie
+              entity_id: script.yoto_play
             data:
-              media_content_id: "{{ cards[option] }}"
-              media_content_type: music
+              variables:
+                card: "{{ cards[option] }}"
+
+script:
+  yoto_play:
+    alias: Yoto play card
+    icon: mdi:music-box
+    mode: restart
+    fields:
+      card:
+        description: A Yoto card, e.g. yoto://card/e04g5
+        required: true
+    sequence:
+      - variables:
+          title: "{{ state_attr('media_player.jodie', 'media_title') }}"
+          was_playing: "{{ is_state('media_player.jodie', 'playing') }}"
+      - action: media_player.play_media
+        target:
+          entity_id: media_player.jodie
+        data:
+          media_content_id: "{{ card }}"
+          media_content_type: music
+      - wait_template: >-
+          {{ is_state('media_player.jodie', 'playing')
+             and (not was_playing or state_attr('media_player.jodie', 'media_title') != title) }}
+        timeout: 45
