@@ -1,15 +1,17 @@
 # The kitchen iPad (iPad 9th gen, LCD) in the companion app's kiosk mode:
 # screen brightness and screensaver through the day, back to Home when idle,
-# a nightly reload, and charging from a smart plug between 30 and 80%. The
+# a nightly reload, and charging from a smart plug between 40 and 60%. The
 # iPad's own kiosk settings (start time, wake on camera motion) are in
 # docs/ipad.md. Remote commands only reach the app while it's open and in
 # the foreground, which is always the case in kiosk mode.
 # Copy to /config/packages/ and reload template entities and automations.
 
 template:
-  # What the screen should be doing now. Night is 22:30-06:30; away is
-  # nobody home (Joris and Pauline; the wall phone and iPad persons are
-  # devices, not people); an earthquake beats everything.
+  # What the screen should be doing now. Night is 22:30-06:30, except on
+  # weekday mornings, when the screen is awake from 05:10 for an early start
+  # (out of the house at about 06:00); away is nobody home (Joris
+  # and Pauline; the wall phone and iPad persons are devices, not people);
+  # an earthquake beats everything.
   - sensor:
       - name: iPad kiosk phase
         unique_id: ipad_kiosk_phase
@@ -18,6 +20,7 @@ template:
           {% set t = now().strftime('%H:%M') %}
           {% if is_state('binary_sensor.wellington_earthquake', 'on') %}quake
           {% elif not (is_state('person.joris', 'home') or is_state('person.pauline', 'home')) %}away
+          {% elif now().weekday() < 5 and '05:10' <= t < '06:30' %}morning
           {% elif t >= '22:30' or t < '06:30' %}night
           {% elif is_state('sun.sun', 'below_horizon') %}evening
           {% else %}day{% endif %}
@@ -80,9 +83,12 @@ automation:
       - variables:
           phase: "{{ states('sensor.ipad_kiosk_phase') }}"
           settings:
-            day: {brightness: 60, mode: dim, dim: 15}
+            # Day (sun up, someone home): the screensaver dims to the same
+            # 60%, so the screen stays lit and still goes back to Home when idle.
+            day: {brightness: 60, mode: dim, dim: 60}
             evening: {brightness: 35, mode: dim, dim: 6}
             night: {brightness: 20, mode: blank, dim: 0}
+            morning: {brightness: 40, mode: dim, dim: 15}
             away: {brightness: 35, mode: blank, dim: 0}
             quake: {brightness: 100, mode: dim, dim: 40}
           s: "{{ settings.get(phase, settings.day) }}"
@@ -106,14 +112,16 @@ automation:
               message: kiosk_set_brightness
               data:
                 level: "{{ s.brightness }}"
-      # Nobody home: go dark now instead of after the timer. A quake wakes it.
+      # Nobody home: go dark now instead of after the timer. A quake or a
+      # weekday morning wakes it.
       - choose:
           - conditions: "{{ phase == 'away' and trigger.id == 'phase' }}"
             sequence:
               - action: notify.mobile_app_ipad
                 data:
                   message: kiosk_show_screensaver
-          - conditions: "{{ phase == 'quake' }}"
+          - conditions: >
+              {{ phase == 'quake' or (phase == 'morning' and trigger.id == 'phase') }}
             sequence:
               - action: notify.mobile_app_ipad
                 data:
@@ -136,6 +144,55 @@ automation:
       - action: notify.mobile_app_ipad
         data:
           message: kiosk_hide_screensaver
+
+  # Weekday mornings (05:10-06:30): keep the screen awake. The screensaver
+  # still starts after the iPad's 2-minute timer, so dismiss it each time.
+  - id: ipad_kiosk_morning_awake
+    alias: iPad stays awake on weekday mornings
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.ipad_kiosk_screensaver
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: sensor.ipad_kiosk_phase
+        state: morning
+    actions:
+      - action: notify.mobile_app_ipad
+        data:
+          message: kiosk_hide_screensaver
+
+  # Night: black after 5 minutes with nobody in front of the camera. The
+  # iPad's own 2-minute timer doesn't always fire after camera motion wakes
+  # it (it stayed lit 6 minutes at a time), so this is the backstop.
+  - id: ipad_kiosk_night_black
+    alias: iPad goes black at night
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.ipad_kiosk_screensaver
+        to: "off"
+        for: "00:05:00"
+      - trigger: state
+        entity_id: binary_sensor.ipad_camera_motion
+        to: "off"
+        for: "00:05:00"
+    conditions:
+      - condition: state
+        entity_id: sensor.ipad_kiosk_phase
+        state: night
+      - condition: state
+        entity_id: binary_sensor.ipad_kiosk_screensaver
+        state: "off"
+        for: "00:05:00"
+      - condition: state
+        entity_id: binary_sensor.ipad_camera_motion
+        state: "off"
+        for: "00:05:00"
+    actions:
+      - action: notify.mobile_app_ipad
+        data:
+          message: kiosk_show_screensaver
 
   # Once the screensaver is up, go back to the configured dashboard (the
   # iPad's Home view), so nobody wakes it to the Kids tab left open. It
@@ -168,39 +225,80 @@ automation:
         data:
           message: kiosk_reload
 
-  # The iPad 9th gen has no 80% charge limit, and lithium batteries age
-  # fastest held full and warm. Charge it from a smart plug named "iPad
-  # charger" (switch.ipad_charger) between 30 and 80%. Does nothing until
-  # that plug exists. If the battery stops reporting, charge, so the iPad
-  # never runs flat.
+  # The iPad 9th gen has no charge limit, and a lithium battery ages fastest
+  # held full and warm. It ages slowest cycling shallowly around half charge,
+  # so a smart plug ("iPad charger", switch.ipad_charger) keeps it between 40
+  # and 60%: about two hours on battery, then 40 minutes charging. Does
+  # nothing until that plug exists.
+  #
+  # Every 10 minutes it also checks the plug matches the battery, which
+  # catches a missed trigger, a plug toggled by hand, or one back from a
+  # power cut. If the battery stops reporting (unavailable, or no change in
+  # 6 hours, which never happens with the screen on), it charges, so the
+  # iPad never runs flat. If HA itself is down, the plug stays as it was: a
+  # daily "on" schedule in the Tapo app is the backstop (docs/ipad.md).
   - id: ipad_charging
-    alias: iPad charges between 30 and 80%
+    alias: iPad charges between 40 and 60%
     mode: queued
+    max: 3
     triggers:
       - trigger: numeric_state
         entity_id: sensor.ipad_battery_level
-        below: 31
-        id: low
+        below: 41
       - trigger: numeric_state
         entity_id: sensor.ipad_battery_level
-        above: 79
-        id: full
+        above: 59
       - trigger: state
         entity_id: sensor.ipad_battery_level
         to: [unknown, unavailable]
         for: "00:30:00"
-        id: low
+      - trigger: state
+        entity_id: switch.ipad_charger
+        from: unavailable
+      - trigger: time_pattern
+        minutes: /10
       - trigger: homeassistant
         event: start
-        id: start
     conditions:
       - "{{ states('switch.ipad_charger') in ['on', 'off'] }}"
     actions:
       - variables:
-          level: "{{ states('sensor.ipad_battery_level') | float(0) }}"
+          low: 40
+          high: 60
+          level: "{{ states('sensor.ipad_battery_level') | float(-1) }}"
+          stale: >
+            {{ not has_value('sensor.ipad_battery_level')
+               or now() - states.sensor.ipad_battery_level.last_changed
+                  > timedelta(hours=6) }}
+          plug_on: "{{ is_state('switch.ipad_charger', 'on') }}"
+          # Between the two limits, keep doing what it was doing.
           charge: >
-            {{ trigger.id == 'low' or (trigger.id == 'start' and level < 80)
-               or not has_value('sensor.ipad_battery_level') }}
-      - action: "switch.turn_{{ 'on' if charge else 'off' }}"
-        target:
-          entity_id: switch.ipad_charger
+            {{ stale or level <= low or (plug_on and level < high) }}
+      - if: "{{ charge != plug_on }}"
+        then:
+          - action: "switch.turn_{{ 'on' if charge else 'off' }}"
+            target:
+              entity_id: switch.ipad_charger
+
+  # The plug is on but the iPad isn't charging: a loose cable or a dead
+  # charger. Say so once per charge, while there's still battery left.
+  - id: ipad_charger_check
+    alias: iPad charger not charging
+    triggers:
+      - trigger: state
+        entity_id: switch.ipad_charger
+        to: "on"
+        for: "00:20:00"
+    conditions:
+      - condition: state
+        entity_id: sensor.ipad_battery_state
+        state: Not Charging
+      - "{{ has_value('sensor.ipad_battery_level') }}"
+    actions:
+      - action: notify.mobile_app_plop
+        data:
+          title: Kitchen iPad isn't charging
+          message: >
+            Its plug has been on for 20 minutes but the iPad says Not Charging
+            ({{ states('sensor.ipad_battery_level') }}%). Check the cable and
+            charger.

@@ -191,10 +191,13 @@ mode, as the local-only, non-admin `ipad` user, on `ipad-home`. Its theme is
 **South Coast** (`config/themes/south_coast.yaml`, with SVG pictures in
 `config/www/ipad/` from `scripts/coast_svg.py`); the theme's 16 px column gaps
 are what make three columns fit. `config/packages/ipad.yaml` drives brightness
-and the screensaver by phase of day through `notify.mobile_app_ipad`
+and the screensaver by phase of day (awake from 05:10 on weekdays) through `notify.mobile_app_ipad`
 (`kiosk_*` messages, which only reach the app in the foreground), and will
-charge it from `switch.ipad_charger` between 30 and 80% once that plug
+charge it from `switch.ipad_charger` between 40 and 60% once that plug
 exists. Details and the iPad's own settings: `docs/ipad.md`.
+The plug bought for it, a P110(AU) at `.98`, has TPAP firmware, which
+python-kasa (HA's TP-Link integration) can't control yet; `docs/ipad.md`
+has the options. The other five Tapo plugs are P110M (KLAP) and work.
 
 ## Devices and integrations worth knowing
 
@@ -301,6 +304,14 @@ exists. Details and the iPad's own settings: `docs/ipad.md`.
   inverter's daily counters. Upstream fixes
   this in 0.9.0; wait for the stable release, as the betas change how charge
   schedules are written.
+  Its developer app on `https://open.alphaess.com` has an **IP allowlist**:
+  calls from any other public IP get error **6009** ("The request timestamp
+  is not within the validity period"; a real clock error is 6006). After an
+  ISP or router change, add the new egress IP there, then reload the entry.
+  Find it from the Pi with
+  `docker exec homeassistant python3 -c "import urllib.request;print(urllib.request.urlopen('https://1.1.1.1/cdn-cgi/trace').read().decode())"`
+  (the `ip=` line). Since 2026-11-19 the allowlist also holds the egress IP
+  of the ISP-outage stopgap (see the user's `ics-outage-router` notes).
 - The user wants Alpha ESS controls **read-only** on dashboards (no
   tap-to-control on its switches or numbers).
 - **Tapo cameras:** two C420 battery cameras behind H200 hubs (`.57` house,
