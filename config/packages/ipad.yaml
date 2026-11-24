@@ -7,21 +7,23 @@
 # Copy to /config/packages/ and reload template entities and automations.
 
 template:
-  # What the screen should be doing now. Night is 22:30-06:30, except on
-  # weekday mornings, when the screen is awake from 05:10 for an early start
-  # (out of the house at about 06:00); away is nobody home (Joris
-  # and Pauline; the wall phone and iPad persons are devices, not people);
-  # an earthquake beats everything.
+  # What the screen should be doing now. Night starts at 23:00, or midnight
+  # on Friday and Saturday nights, and ends at 06:30, except on weekday
+  # mornings, when the screen is awake from 05:10 for an early start (out of
+  # the house at about 06:00); away is nobody home (Joris and Pauline; the
+  # wall phone and iPad persons are devices, not people); an earthquake
+  # beats everything.
   - sensor:
       - name: iPad kiosk phase
         unique_id: ipad_kiosk_phase
         icon: mdi:tablet-dashboard
         state: >
           {% set t = now().strftime('%H:%M') %}
+          {% set bedtime = '24:00' if now().weekday() in [4, 5] else '23:00' %}
           {% if is_state('binary_sensor.wellington_earthquake', 'on') %}quake
           {% elif not (is_state('person.joris', 'home') or is_state('person.pauline', 'home')) %}away
           {% elif now().weekday() < 5 and '05:10' <= t < '06:30' %}morning
-          {% elif t >= '22:30' or t < '06:30' %}night
+          {% elif t >= bedtime or t < '06:30' %}night
           {% elif is_state('sun.sun', 'below_horizon') %}evening
           {% else %}day{% endif %}
 
@@ -83,10 +85,10 @@ automation:
       - variables:
           phase: "{{ states('sensor.ipad_kiosk_phase') }}"
           settings:
-            # Day (sun up, someone home): the screensaver dims to the same
-            # 60%, so the screen stays lit and still goes back to Home when idle.
-            day: {brightness: 60, mode: dim, dim: 60}
-            evening: {brightness: 35, mode: dim, dim: 6}
+            # Day and evening: the screensaver dims to the same level, so the
+            # screen stays lit and still goes back to Home when idle.
+            day: {brightness: 80, mode: dim, dim: 80}
+            evening: {brightness: 40, mode: dim, dim: 40}
             night: {brightness: 20, mode: blank, dim: 0}
             morning: {brightness: 40, mode: dim, dim: 15}
             away: {brightness: 35, mode: blank, dim: 0}

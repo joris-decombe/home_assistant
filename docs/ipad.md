@@ -66,9 +66,9 @@ commands (`notify.mobile_app_ipad`, message `kiosk_*`):
 
 | Phase (`sensor.ipad_kiosk_phase`) | When | Brightness | Screensaver |
 |---|---|---|---|
-| day | sun up, someone home | 60% | dim, 60% (stays lit) |
-| evening | sunset to 22:30 | 35% | dim, 6% |
-| night | 22:30 to 06:30 | 20% | blank |
+| day | sun up, someone home | 80% | dim, 80% (stays lit) |
+| evening | sunset to 23:00 (midnight on Friday and Saturday) | 40% | dim, 40% (stays lit) |
+| night | 23:00 (or midnight) to 06:30 | 20% | blank |
 | morning | weekdays 05:10 to 06:30 | 40% | kept off |
 | away | Joris and Pauline both out | 35% | blank, at once |
 | quake | Wellington shaking (MMI 3+) | 100% | dismissed |
@@ -95,8 +95,8 @@ it sits at 100% and the battery will eventually swell.
 
 The package keeps the battery between **40 and 60%** from a smart plug whose
 switch is **`switch.ipad_charger`**: a lithium battery lasts longest cycling
-shallowly around half charge. That's about two hours on battery, then 40
-minutes charging. Every 10 minutes it checks the plug against the battery
+shallowly around half charge. That's about an hour and a half on battery,
+then 40 minutes charging. Every 10 minutes it checks the plug against the battery
 (a missed trigger, a plug switched by hand, a power cut). If the battery
 stops reporting (unavailable, or unchanged for 6 hours), it charges, so the
 iPad never runs flat, and if the plug is on for 20 minutes while the iPad
@@ -113,6 +113,20 @@ yet ([python-kasa#1590](https://github.com/python-kasa/python-kasa/issues/1590))
 so the TP-Link integration ignores it, and a P110 has no Matter. Turning on
 *Third-Party Compatibility* in the Tapo app (Me → Third-Party Services) is
 reported to switch a plug back to KLAP; otherwise swap it for a P110M.
+
+Until HA can switch it, the plug runs on a **timer in the Tapo app**: on at
+00:00, 03:00, 06:00 and so on, every 3 hours, for 59 minutes. Measured from
+20 to 24 November 2026 (at 60% daytime brightness), that kept the battery at
+85–100% all day and 95–100% all night, at *Full* for 15–20 minutes of each
+window. The iPad used about 10% an hour lit by day and 3% an hour black at
+night (the app reports the level in 5% steps), and charged at about 28% an
+hour while lit. A timer can't follow the battery, so it can't hold 40–60%:
+too much charging ends at 100% every time, too little drifts flat. The
+night windows (00:00 and 03:00) only top up a full battery, so drop those
+two and the iPad reaches morning at about 70% instead of sitting at 100%.
+Leave the daytime windows: at 80% the screen should use about what they
+put back (not measured yet). If the level drops under 40% before a window,
+make the windows longer.
 
 ## Setting up the iPad
 
