@@ -639,9 +639,8 @@ views:
         columns: 6
       tap_action: *id003
     - type: tile
-      entity: switch.garage_joris_home_charger_charge_now
+      entity: switch.car_charge_now
       name: Charge now
-      icon: mdi:lightning-bolt
       color: green
       grid_options:
         columns: 6
@@ -946,9 +945,8 @@ views:
           grid_options:
             columns: 6
         - type: tile
-          entity: switch.garage_joris_home_charger_charge_now
+          entity: switch.car_charge_now
           name: Charge now
-          icon: mdi:lightning-bolt
           color: green
           tap_action:
             action: toggle

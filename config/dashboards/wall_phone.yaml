@@ -65,17 +65,6 @@ views:
             entity: binary_sensor.camera_garage_person
             state: "on"
       - <<: *alert_badge
-        entity: climate.heater_jodie
-        name: Jodie's heater on
-        icon: mdi:radiator
-        color: deep-orange
-        tap_action:
-          action: more-info
-        visibility:
-          - condition: state
-            entity: climate.heater_jodie
-            state_not: "off"
-      - <<: *alert_badge
         entity: vacuum.rockrobo_sg_64457686_v1
         name: Vacuum stuck
         icon: mdi:robot-vacuum-alert
@@ -398,6 +387,57 @@ views:
                   const m = Math.floor(lo / s) * s;
                   const t = new Date(fc[0].datetime).getTime();
                   return [[t, m], [t, m + 4 * s]];
+          # Can I swim here? LAWA's prediction for the beaches near home
+          # (config/packages/swimming.yaml): the worst of each bay's sites, then a
+          # warning in effect or the time LAWA predicted it. Tap for each site.
+          # Teal to swim, amber for caution, red not to.
+          - &swim
+            type: tile
+            entity: sensor.swimming_island_bay
+            color: teal
+            state_content:
+              - state
+              - note
+            tap_action:
+              action: more-info
+            grid_options:
+              columns: 6
+            visibility:
+              - condition: state
+                entity: sensor.swimming_island_bay
+                state_not: [Caution, "Don't swim"]
+          - <<: *swim
+            color: amber
+            visibility:
+              - condition: state
+                entity: sensor.swimming_island_bay
+                state: Caution
+          - <<: *swim
+            color: red
+            visibility:
+              - condition: state
+                entity: sensor.swimming_island_bay
+                state: "Don't swim"
+          - <<: *swim
+            entity: sensor.swimming_oriental_bay
+            visibility:
+              - condition: state
+                entity: sensor.swimming_oriental_bay
+                state_not: [Caution, "Don't swim"]
+          - <<: *swim
+            entity: sensor.swimming_oriental_bay
+            color: amber
+            visibility:
+              - condition: state
+                entity: sensor.swimming_oriental_bay
+                state: Caution
+          - <<: *swim
+            entity: sensor.swimming_oriental_bay
+            color: red
+            visibility:
+              - condition: state
+                entity: sensor.swimming_oriental_bay
+                state: "Don't swim"
 
       # Live power, read-only. The heading opens the Energy view.
       - type: grid
@@ -632,9 +672,8 @@ views:
             grid_options:
               columns: 6
           - type: tile
-            entity: switch.garage_joris_home_charger_charge_now
+            entity: switch.car_charge_now
             name: Charge now
-            icon: mdi:lightning-bolt
             color: green
             tap_action:
               action: toggle
@@ -690,9 +729,7 @@ views:
             hide_state: true
             tap_action: &play_mood_1
               action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 1
+              perform_action: script.music_mood_1
             icon_tap_action: *play_mood_1
             grid_options:
               columns: 4
@@ -702,18 +739,14 @@ views:
             color: teal
             tap_action: &play_mood_2
               action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 2
+              perform_action: script.music_mood_2
             icon_tap_action: *play_mood_2
           - <<: *mood
             entity: sensor.music_mood_3
             color: indigo
             tap_action: &play_mood_3
               action: perform-action
-              perform_action: script.music_play_mood
-              data:
-                slot: 3
+              perform_action: script.music_mood_3
             icon_tap_action: *play_mood_3
 
       # Least urgent, so below the controls: the next 24 h (the same chart as
@@ -1537,7 +1570,7 @@ views:
         text_only: true
         content: |
           # Kids
-          Yoto {{ 'playing ' ~ (state_attr('media_player.jodie', 'media_title') | truncate(24, true, '…', 0)) if is_state('media_player.jodie', 'playing') else states('media_player.jodie') }}{{ ' · battery ' ~ states('sensor.jodie_battery') ~ '%' if is_number(states('sensor.jodie_battery')) }}
+          Yoto {{ 'starting a card…' if is_state('script.yoto_play', 'on') else 'playing ' ~ (state_attr('media_player.jodie', 'media_title') | truncate(24, true, '…', 0)) if is_state('media_player.jodie', 'playing') else states('media_player.jodie') }}{{ ' · battery ' ~ states('sensor.jodie_battery') ~ '%' if is_number(states('sensor.jodie_battery')) }}
 
           &nbsp;
     max_columns: 1
@@ -1594,12 +1627,9 @@ views:
             hide_state: true
             tap_action: &play_story
               action: perform-action
-              perform_action: media_player.play_media
-              target:
-                entity_id: media_player.jodie
+              perform_action: script.yoto_play
               data:
-                media_content_id: yoto://card/e04g5
-                media_content_type: music
+                card: yoto://card/e04g5
             icon_tap_action: *play_story
             grid_options:
               columns: 6
@@ -1610,8 +1640,7 @@ views:
             tap_action: &play_odyssees
               <<: *play_story
               data:
-                media_content_id: yoto://card/cUqRz
-                media_content_type: music
+                card: yoto://card/cUqRz
             icon_tap_action: *play_odyssees
           - <<: *story
             name: Oli
@@ -1620,8 +1649,7 @@ views:
             tap_action: &play_oli
               <<: *play_story
               data:
-                media_content_id: yoto://card/8mvD4
-                media_content_type: music
+                card: yoto://card/8mvD4
             icon_tap_action: *play_oli
           - <<: *story
             name: Bestioles
@@ -1630,8 +1658,7 @@ views:
             tap_action: &play_bestioles
               <<: *play_story
               data:
-                media_content_id: yoto://card/d3PX8
-                media_content_type: music
+                card: yoto://card/d3PX8
             icon_tap_action: *play_bestioles
           - <<: *story
             name: Les Zinstrus
@@ -1640,8 +1667,7 @@ views:
             tap_action: &play_zinstrus
               <<: *play_story
               data:
-                media_content_id: yoto://card/erZr1
-                media_content_type: music
+                card: yoto://card/erZr1
             icon_tap_action: *play_zinstrus
           - <<: *story
             name: Prince de Motordu
@@ -1650,8 +1676,7 @@ views:
             tap_action: &play_motordu
               <<: *play_story
               data:
-                media_content_id: yoto://card/8tQBt
-                media_content_type: music
+                card: yoto://card/8tQBt
             icon_tap_action: *play_motordu
           - <<: *story
             name: Zébulon
@@ -1660,8 +1685,7 @@ views:
             tap_action: &play_zebulon
               <<: *play_story
               data:
-                media_content_id: yoto://card/dLe7m
-                media_content_type: music
+                card: yoto://card/dLe7m
             icon_tap_action: *play_zebulon
           - <<: *story
             name: Gruffalo
@@ -1670,8 +1694,7 @@ views:
             tap_action: &play_gruffalo
               <<: *play_story
               data:
-                media_content_id: yoto://card/cxuNI
-                media_content_type: music
+                card: yoto://card/cxuNI
             icon_tap_action: *play_gruffalo
           - <<: *story
             name: Camp Owl
@@ -1680,8 +1703,7 @@ views:
             tap_action: &play_camp_owl
               <<: *play_story
               data:
-                media_content_id: yoto://card/zfcn8
-                media_content_type: music
+                card: yoto://card/zfcn8
             icon_tap_action: *play_camp_owl
           - <<: *story
             name: Dogood Detectives
@@ -1690,8 +1712,7 @@ views:
             tap_action: &play_dogood
               <<: *play_story
               data:
-                media_content_id: yoto://card/9DOuw
-                media_content_type: music
+                card: yoto://card/9DOuw
             icon_tap_action: *play_dogood
           # Yoto Club series: pick a card from the dropdown to play it
           # (selects in config/packages/yoto.yaml).
@@ -1728,8 +1749,7 @@ views:
             tap_action: &play_daily
               <<: *play_story
               data:
-                media_content_id: yoto://card/gtROT
-                media_content_type: music
+                card: yoto://card/gtROT
             icon_tap_action: *play_daily
           - <<: *story
             name: Around the World
@@ -1738,8 +1758,7 @@ views:
             tap_action: &play_world
               <<: *play_story
               data:
-                media_content_id: yoto://card/6Zxkk
-                media_content_type: music
+                card: yoto://card/6Zxkk
             icon_tap_action: *play_world
           - <<: *story
             name: Brain Snacks
@@ -1748,8 +1767,7 @@ views:
             tap_action: &play_snacks
               <<: *play_story
               data:
-                media_content_id: yoto://card/aYAQy
-                media_content_type: music
+                card: yoto://card/aYAQy
             icon_tap_action: *play_snacks
           - <<: *story
             name: History for Kids
@@ -1758,8 +1776,7 @@ views:
             tap_action: &play_history
               <<: *play_story
               data:
-                media_content_id: yoto://card/dhnrU
-                media_content_type: music
+                card: yoto://card/dhnrU
             icon_tap_action: *play_history
           - <<: *story
             name: Mini Journal
@@ -1768,8 +1785,7 @@ views:
             tap_action: &play_journal
               <<: *play_story
               data:
-                media_content_id: yoto://card/2gBG5
-                media_content_type: music
+                card: yoto://card/2gBG5
             icon_tap_action: *play_journal
           - <<: *story
             name: Noodle Loaf
@@ -1778,8 +1794,7 @@ views:
             tap_action: &play_noodle
               <<: *play_story
               data:
-                media_content_id: yoto://card/4iekL
-                media_content_type: music
+                card: yoto://card/4iekL
             icon_tap_action: *play_noodle
           - <<: *story
             name: Sleep Radio
@@ -1788,8 +1803,7 @@ views:
             tap_action: &play_sleep
               <<: *play_story
               data:
-                media_content_id: yoto://card/5rJ03
-                media_content_type: music
+                card: yoto://card/5rJ03
             icon_tap_action: *play_sleep
           - <<: *story
             name: Classical Sleep
@@ -1798,8 +1812,7 @@ views:
             tap_action: &play_classical_sleep
               <<: *play_story
               data:
-                media_content_id: yoto://card/c7Oae
-                media_content_type: music
+                card: yoto://card/c7Oae
             icon_tap_action: *play_classical_sleep
           - <<: *story
             name: Radio Yoto (FR)
@@ -1808,8 +1821,7 @@ views:
             tap_action: &play_radio_fr
               <<: *play_story
               data:
-                media_content_id: yoto://card/2pjM1
-                media_content_type: music
+                card: yoto://card/2pjM1
             icon_tap_action: *play_radio_fr
 
       # Yoto Club learning series: pick a card from the dropdown.
@@ -2104,9 +2116,8 @@ views:
             grid_options:
               columns: 6
           - type: tile
-            entity: switch.garage_joris_home_charger_charge_now
+            entity: switch.car_charge_now
             name: Charge now
-            icon: mdi:lightning-bolt
             color: green
             tap_action:
               action: toggle
