@@ -41,6 +41,9 @@ inbound IPv6 before re-enabling it. LLMNR is off on that interface too; mDNS
 - **Custom integrations** (HACS): `alphaess`, `echonetlite`, `evnex`,
   `xiaomi_home`, `hacs`. They run inside HA with full access, so keep the
   list short and read release notes before updating.
+- **Alpha ESS cloud API:** the developer app on `open.alphaess.com` accepts
+  calls only from the public IPs on its allowlist (error 6009 otherwise).
+  Keep it to the house's own egress IPs.
 
 ## Still to do by hand
 
