@@ -222,8 +222,12 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   20:30; its watchdog reloads the entry after 15 minutes unavailable. On 22
   November 2026 it acked every command but acted on none, reporting the
   same state, even after a reload: only switching it off at the wall clears
-  that. It sits with the heat pumps on all three dashboards (no header
-  badge: removed on request).
+  that. From 25 November 2026, 07:46, it was off the network altogether (no
+  ping or ARP at `.54`, nothing on the LAN answering Tuya's port 6668).
+  Smart Life isn't needed to run it: Tuya Local is local, and the app can be
+  uninstalled as long as the heater isn't *removed* in it (that resets it
+  and changes the key). It sits with the heat pumps on all three dashboards
+  (no header badge: removed on request).
 - **Earthquakes:** GeoNet NZ Quakes (core, set up in the UI: 300 km, MMI 3+,
   the last 7 days) makes one `geo_location` entity per quake, for the
   **Quakes** tab on all three dashboards. `config/packages/earthquakes.yaml`
@@ -261,6 +265,11 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   against the panels in November 2026), no solar forecast integration.
   `input_boolean.car_solar_charging`
   marks a session it started, so it never stops a Charge now turned on by hand.
+  Its three automations were off from 13 to 26 November 2026 to try the
+  Evnex charger's own solar diversion, which only charges once the home
+  battery is full; they're back on. Charge now overrides that diversion
+  (the connector goes from `suspended_evse` to charging, or `suspended_ev`
+  if the car itself declines).
   All three dashboards have a **Solar charging** tab for it (wall phone
   first, then copied; the chart's dashed estimate repeats the package's solar
   curve in JS, so change both together).
