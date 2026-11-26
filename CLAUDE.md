@@ -222,19 +222,27 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   20:30; its watchdog reloads the entry after 15 minutes unavailable. On 22
   November 2026 it acked every command but acted on none, reporting the
   same state, even after a reload: only switching it off at the wall clears
-  that. From 25 November 2026, 07:46, it was off the network altogether.
-  Plugged back in on 26 November it rejoined at `.54` with the same device
-  ID but a **new local key** (fetched through Tuya Local's Smart Life QR
-  login and set in the entry's options, protocol 3.3). It still looks
-  **faulty**: every status query gets "json obj data unvalid" (the Wi-Fi
-  module has nothing from the heater's controller), 3.22/device22 queries
-  time out, commands are only echoed by the module, and Smart Life can't
-  control it either, even after several Wi-Fi resets (hold the WiFi button
-  5 s) and re-adding it. So HA's "off" for it means nothing, and the
-  morning automations can't be trusted. It's a GPPH710 (1000 W), with a
-  3-year Goldair warranty (NZ 0800 232 633): a warranty claim, a plug in
-  front of it or a new heater is the fix. Changing the entry's options set off about a minute of reloads
-  every few seconds (Tuya Local adds an update listener on every setup).
+  that. From 25 November 2026, 07:46, it was off the network altogether
+  (unplugged). On 26 November it looked dead but wasn't:
+  - Each re-pair in Smart Life (Wi-Fi reset: hold the WiFi button 5 s)
+    gives it a **new local key**, so HA gets error 904 and the entry stays
+    offline. Fetch the key with a `tuya_local` config flow in cloud mode
+    (Smart Life user code, then a QR scanned in the app; the login is kept
+    for later), read it from the `local` step's default, abort that flow,
+    and put the key on the existing entry through its options flow
+    (protocol 3.3, not auto). Entity IDs stay the same.
+  - After the resets it came back in preset **away** (Goldair's
+    anti-freeze, AF), which holds 5 °C and then left 5 °C as the comfort
+    target, so it seemed to ignore commands.
+  - Until a button on the heater was pressed, every status query got
+    "json obj data unvalid" (error 900: the Wi-Fi module had no state
+    yet). Tuya Local treats that as reachable with no data, so entities
+    stay unknown. One button press fixed it.
+  - Changing the entry's options sets off reloads every few seconds (Tuya
+    Local adds an update listener on every setup and never removes it),
+    which hammer the heater with parallel connections. Disabling and
+    re-enabling the entry stopped it.
+  It's a GPPH710 (1000 W, 3-year Goldair warranty).
   Smart Life isn't needed to run it: Tuya Local is local, and the app can be
   uninstalled as long as the heater isn't *removed* in it (that resets it
   and changes the key). It sits with the heat pumps on all three dashboards
