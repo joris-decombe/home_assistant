@@ -166,8 +166,11 @@ template:
   # Charge now for the dashboards. The Evnex switch only changes once its
   # cloud confirms (seconds, sometimes minutes), so a tap looked like it did
   # nothing. This one flips at once, with an hourglass until the charger has
-  # followed (script.car_charge_now_on/off). Automations use the Evnex
-  # switch itself.
+  # followed (script.car_charge_now_on/off). The solar charging automations
+  # use those scripts too, for their retries.
+  #
+  # A second tap within 5 seconds of the first is ignored: on 27 November
+  # 2026 one tap on the iPad toggled twice (off, then on in the same second).
   - switch:
       - name: Charge now
         unique_id: car_charge_now
@@ -181,17 +184,29 @@ template:
              or (is_state('switch.garage_joris_home_charger_charge_now', 'on')
                  and not is_state('script.car_charge_now_off', 'on')) }}
         turn_on:
+          - condition: template
+            value_template: >
+              {{ now() - (state_attr('script.car_charge_now_off', 'last_triggered')
+                           or now() - timedelta(minutes=1)) > timedelta(seconds=5) }}
           - action: script.turn_on
             target:
               entity_id: script.car_charge_now_on
         turn_off:
+          - condition: template
+            value_template: >
+              {{ now() - (state_attr('script.car_charge_now_on', 'last_triggered')
+                           or now() - timedelta(minutes=1)) > timedelta(seconds=5) }}
           - action: script.turn_on
             target:
               entity_id: script.car_charge_now_off
 
 script:
-  # Charge now on/off for switch.car_charge_now: each cancels the other, then
-  # waits (up to 5 minutes) for the Evnex switch to show it.
+  # Charge now on/off for switch.car_charge_now and the solar charging
+  # automations: each cancels the other, then asks the charger up to three
+  # times, a minute apart, until the Evnex switch shows it. Evnex's cloud
+  # sometimes times out (ReadTimeout, 27 November 2026), and that error
+  # isn't one continue_on_error catches, so each request runs in its own
+  # script (car_charge_now_send), whose failure doesn't stop these.
   car_charge_now_on:
     alias: Charge now on
     icon: mdi:lightning-bolt
@@ -200,11 +215,22 @@ script:
       - action: script.turn_off
         target:
           entity_id: script.car_charge_now_off
-      - action: switch.turn_on
-        target:
-          entity_id: switch.garage_joris_home_charger_charge_now
+      - repeat:
+          sequence:
+            - action: script.turn_on
+              target:
+                entity_id: script.car_charge_now_send
+              data:
+                variables:
+                  turn: "on"
+            - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'on') }}"
+              timeout: "00:01:00"
+          until:
+            - condition: template
+              value_template: >
+                {{ is_state('switch.garage_joris_home_charger_charge_now', 'on') or repeat.index >= 3 }}
       - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'on') }}"
-        timeout: "00:05:00"
+        timeout: "00:02:00"
 
   car_charge_now_off:
     alias: Charge now off
@@ -214,11 +240,35 @@ script:
       - action: script.turn_off
         target:
           entity_id: script.car_charge_now_on
-      - action: switch.turn_off
+      - repeat:
+          sequence:
+            - action: script.turn_on
+              target:
+                entity_id: script.car_charge_now_send
+              data:
+                variables:
+                  turn: "off"
+            - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'off') }}"
+              timeout: "00:01:00"
+          until:
+            - condition: template
+              value_template: >
+                {{ is_state('switch.garage_joris_home_charger_charge_now', 'off') or repeat.index >= 3 }}
+      - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'off') }}"
+        timeout: "00:02:00"
+
+  # One request to the Evnex cloud, on its own so a timeout only ends this.
+  car_charge_now_send:
+    alias: Charge now request
+    icon: mdi:cloud-upload-outline
+    mode: restart
+    fields:
+      turn:
+        description: '"on" or "off"'
+    sequence:
+      - action: "switch.turn_{{ turn }}"
         target:
           entity_id: switch.garage_joris_home_charger_charge_now
-      - wait_template: "{{ is_state('switch.garage_joris_home_charger_charge_now', 'off') }}"
-        timeout: "00:05:00"
 
   # One tap on the wall phone's ceiling-light card: both lights on (in their
   # last mode) or both off. Both ceiling scripts wait (up to 20 s) for the

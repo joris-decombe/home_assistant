@@ -154,7 +154,11 @@ the panorama no longer lines up under it.
   "Paused by car", "Waiting to charge", "Unplugged"), for the Car section.
   The Car section's *Charge now* switch is the one charger control on it:
   `switch.car_charge_now`, a template switch over Evnex's (which only flips
-  once the cloud confirms) through `script.car_charge_now_on`/`_off`.
+  once the cloud confirms) through `script.car_charge_now_on`/`_off`. Those
+  retry up to three times, a minute apart, because Evnex's cloud sometimes
+  times out, each request in its own `script.car_charge_now_send` (a
+  `ReadTimeout` isn't caught by `continue_on_error`). A second tap within
+  5 s is ignored, after one iPad tap toggled it twice.
 - **Press feedback:** slow controls (ceiling lights, Charge now, music moods,
   Yoto cards) go through a script that waits until the device has changed,
   and their entity shows an hourglass (`mdi:timer-sand`) or "Starting…"
@@ -258,11 +262,15 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   home battery after: it turns on the charger's *Charge now* when solar is
   in surplus and the battery is 15 points above
   `sensor.car_charging_battery_floor`, or 98% at most
-  (`binary_sensor.solar_surplus`). It turns it back off at 1 kW of grid
-  import, or when the battery reaches that floor: how low it can go and
-  still refill before the sun drops below the house's use (it counts only
-  the sun above 1 kW; aiming for sunset stopped the car too early and
-  exported the refill). The user chose car first knowing it costs some
+  (`binary_sensor.solar_surplus`). It turns it back off after 2 minutes
+  over 500 W of grid import, or when the battery reaches that floor: how
+  low it can go and still refill before the sun drops below the house's use
+  (it counts only the sun above 1 kW; aiming for sunset stopped the car too
+  early and exported the refill). The floor is never below **35%**: the
+  battery stops discharging at about 31–32% by itself, so the old 30% floor
+  never fired and a session ran into the grid until the import stop (27
+  November 2026). It switches Charge now through the same retrying scripts
+  as the dashboards, and rechecks a failed stop every 5 minutes. The user chose car first knowing it costs some
   evening import (~0.7 kWh a day) for an earlier charge: starting at 98%
   already caught nearly all the export. It and `sensor.solar_left_today`
   share a fitted sun curve × met.no's hourly conditions (factors measured
