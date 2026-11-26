@@ -222,8 +222,17 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   20:30; its watchdog reloads the entry after 15 minutes unavailable. On 22
   November 2026 it acked every command but acted on none, reporting the
   same state, even after a reload: only switching it off at the wall clears
-  that. From 25 November 2026, 07:46, it was off the network altogether (no
-  ping or ARP at `.54`, nothing on the LAN answering Tuya's port 6668).
+  that. From 25 November 2026, 07:46, it was off the network altogether.
+  Plugged back in on 26 November it rejoined at `.54` with the same device
+  ID but a **new local key** (fetched through Tuya Local's Smart Life QR
+  login and set in the entry's options, protocol 3.3). It still looks
+  **faulty**: every status query gets "json obj data unvalid" (the Wi-Fi
+  module has nothing from the heater's controller), 3.22/device22 queries
+  time out, commands are only echoed by the module, and Smart Life can't
+  control it either. So HA's "off" for it means nothing, and the morning
+  automations can't be trusted; a plug in front of it or a new heater is
+  the fix. Changing the entry's options set off about a minute of reloads
+  every few seconds (Tuya Local adds an update listener on every setup).
   Smart Life isn't needed to run it: Tuya Local is local, and the app can be
   uninstalled as long as the heater isn't *removed* in it (that resets it
   and changes the key). It sits with the heat pumps on all three dashboards
