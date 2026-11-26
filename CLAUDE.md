@@ -212,18 +212,26 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   `.84`, Dining room `.89`. Living room and Dining room report lifetime kWh only
   (no live watts); Hall reports none. Approximate power comes from `derivative`
   helpers, and daily kWh from `utility_meter` helpers, all created in the UI.
-- **Jodie's heater:** a Goldair GPPH panel heater, `climate.heater_jodie`, on
-  **Tuya Local** (`make-all/tuya-local`, a HACS custom repository), local at
-  `.54` (protocol 3.3). It's paired in Smart Life, whose QR sign-in fetched
-  its local key; re-pairing changes the key. It reports no power or energy.
-  `config/packages/jodie_heater.yaml` turns it off from 07:00, retrying
-  every 5 minutes (and after an HA restart) until 07:30, when it notifies
-  `mobile_app_plop` if it's still not off, and, if it's on, its display off at
-  20:30; its watchdog reloads the entry after 15 minutes unavailable. On 22
-  November 2026 it acked every command but acted on none, reporting the
-  same state, even after a reload: only switching it off at the wall clears
-  that. It sits with the heat pumps on all three dashboards (no header
-  badge: removed on request).
+- **Jodie's heater:** a Goldair GPPH710 panel heater, `climate.heater_jodie`,
+  on **Tuya Local** (`make-all/tuya-local`, a HACS custom repository), local
+  at `.54`, protocol 3.3 (keep it pinned, not auto). It reports no power or
+  energy. `config/packages/jodie_heater.yaml` turns it off from 07:00,
+  retrying every 5 minutes (and after an HA restart) until 07:30, when it
+  notifies `mobile_app_plop` if it's still not off, and, if it's on, its
+  display off at 20:30; its watchdog reloads the entry after 15 minutes
+  unavailable. **`docs/jodie-heater.md`** is the troubleshooting guide:
+  symptoms by error code, `scripts/tuya_probe.py` (status, live listen, LAN
+  scan, HA history, run in the HA container) and
+  `scripts/tuya_local_entry.py` (re-key after a re-pair, disable/enable).
+  In short: every Smart Life re-pair changes its local key (error 904);
+  after a reset it can come back in anti-freeze (5 °C) and with an empty
+  Wi-Fi module (error 900, entities unknown) until a button on it is
+  pressed; changing the entry's options sets off a reload loop that
+  disable/enable stops. On 26 November 2026 all three together made it look
+  dead, in Smart Life too; it wasn't. Smart Life isn't needed to run it, but
+  never *remove* the heater in it (that resets it and changes the key). It
+  sits with the heat pumps on all three dashboards (no header badge:
+  removed on request).
 - **Earthquakes:** GeoNet NZ Quakes (core, set up in the UI: 300 km, MMI 3+,
   the last 7 days) makes one `geo_location` entity per quake, for the
   **Quakes** tab on all three dashboards. `config/packages/earthquakes.yaml`
@@ -261,6 +269,11 @@ has the options. The other five Tapo plugs are P110M (KLAP) and work.
   against the panels in November 2026), no solar forecast integration.
   `input_boolean.car_solar_charging`
   marks a session it started, so it never stops a Charge now turned on by hand.
+  Its three automations were off from 13 to 26 November 2026 to try the
+  Evnex charger's own solar diversion, which only charges once the home
+  battery is full; they're back on. Charge now overrides that diversion
+  (the connector goes from `suspended_evse` to charging, or `suspended_ev`
+  if the car itself declines).
   All three dashboards have a **Solar charging** tab for it (wall phone
   first, then copied; the chart's dashed estimate repeats the package's solar
   curve in JS, so change both together).
