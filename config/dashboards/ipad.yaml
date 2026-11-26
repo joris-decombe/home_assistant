@@ -111,7 +111,7 @@ views:
             content: |
               {%- set mmi = states('sensor.wellington_shaking') | int(0) %}
               {%- set words = {3: 'weak', 4: 'light', 5: 'moderate', 6: 'strong', 7: 'severe'} %}
-              {%- set q = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | first %}
+              {%- set q = states.geo_location | selectattr('attributes.source', 'defined') | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | first %}
               {%- set recent = q is defined and q and now() - (q.attributes.time | as_datetime) < timedelta(hours=1) %}
               <ha-alert alert-type="warning" title="Earthquake shaking in Wellington">
               Measured MMI {{ mmi }} ({{ words.get(mmi, 'extreme' if mmi > 7 else 'weak') }}).
@@ -2171,7 +2171,7 @@ views:
         text_only: true
         content: |
           # Quakes
-          {%- set n = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | list | count %}
+          {%- set n = states.geo_location | selectattr('attributes.source', 'defined') | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | list | count %}
           {{ n }} felt quake{{ 's' if n != 1 }} within 300 km this week · Wellington shaking now: MMI {{ states('sensor.wellington_shaking') }}
 
           &nbsp;
@@ -2215,7 +2215,7 @@ views:
             grid_options:
               columns: full
             content: |
-              {%- set qs = states.geo_location | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | list %}
+              {%- set qs = states.geo_location | selectattr('attributes.source', 'defined') | selectattr('attributes.source', 'eq', 'geonetnz_quakes') | rejectattr('attributes.quality', 'eq', 'deleted') | sort(attribute='attributes.time', reverse=true) | list %}
               {%- for q in qs[:15] %}
               **M{{ '%.1f' | format(q.attributes.magnitude) }}** · {{ q.attributes.locality }}<br>
               {{ relative_time(q.attributes.time | as_datetime) }} ago · {{ q.attributes.depth | round(0) | int }} km deep · {{ q.state | float(0) | round(0) | int }} km away
