@@ -8,7 +8,17 @@
 # start exporting otherwise: sensor.car_charging_battery_floor is how low it
 # can go for that. Charge now goes back off, handing back to the charger's
 # schedule, when the battery reaches that floor, when the house has been
-# importing over 1 kW for 5 minutes, or when Alpha ESS stops reporting.
+# importing over 500 W for 2 minutes, or when Alpha ESS stops reporting.
+#
+# The floor never goes below 35%: the battery itself stops discharging at
+# about 31-32%. With a 30% floor (until 27 November 2026) the floor stop
+# could never fire, so a session ran on until the import stop, at 1 kW for
+# 5 minutes. While the battery is above its cutoff it covers the house and
+# the car (it gave 4 kW that morning), so any steady import means it can't.
+#
+# Charge now goes through script.car_charge_now_on/off (wall_phone.yaml),
+# which retry when Evnex's cloud times out; a stop that still fails is tried
+# again every 5 minutes.
 #
 # Starting at 98% instead already caught nearly all the export; starting at
 # the floor charges the car earlier, but a battery that doesn't refill comes
@@ -21,7 +31,7 @@
 # the panels made under each condition in the week to 3 November 2026
 # (partly cloudy ~0.9 of the curve, cloudy and rainy ~0.55), shaded down a
 # little. The floor counts only the sun above an assumed 1 kW house load;
-# mornings come out high, but the floor bottoms out at 30% then anyway.
+# mornings come out high, but the floor bottoms out at 35% then anyway.
 # Aiming for a full battery at sunset instead (counting the evening's use too)
 # stopped the car too early and exported the sun that refilled the battery
 # after.
@@ -126,7 +136,7 @@ template:
             {% endfor %}
           {% endif %}
           {% set capacity = states('sensor.alphaess_installed_capacity') | float(9.6) %}
-          {{ ([100 - ns.spare / capacity * 100, 30] | max, 100) | min | round(0) }}
+          {{ ([100 - ns.spare / capacity * 100, 35] | max, 100) | min | round(0) }}
 
 automation:
   - id: car_solar_charging_start
@@ -167,9 +177,10 @@ automation:
         entity_id: binary_sensor.garage_joris_home_charger_charging
         state: "off"
     actions:
-      - action: switch.turn_on
-        target:
-          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: script.car_charge_now_on
+      - condition: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        state: "on"
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.car_solar_charging
@@ -186,9 +197,9 @@ automation:
              < states('sensor.car_charging_battery_floor') | float(0) }}
       - trigger: numeric_state
         entity_id: sensor.alphaess_instantaneous_grid_i_o_total
-        above: 1000
+        above: 500
         for:
-          minutes: 5
+          minutes: 2
       # Its cloud can get stuck (see alpha_ess.yaml); don't charge blind.
       - trigger: state
         entity_id: sensor.alphaess_instantaneous_battery_soc
@@ -197,14 +208,28 @@ automation:
           - unknown
         for:
           minutes: 10
+      # A stop whose three requests all failed (Evnex's cloud): try again.
+      - trigger: time_pattern
+        minutes: /5
+        id: retry
     conditions:
       - condition: state
         entity_id: input_boolean.car_solar_charging
         state: "on"
+      - condition: template
+        value_template: >
+          {{ trigger.id != 'retry'
+             or (is_state('switch.garage_joris_home_charger_charge_now', 'on')
+                 and (not has_value('sensor.alphaess_instantaneous_battery_soc')
+                      or states('sensor.alphaess_instantaneous_battery_soc') | float(100)
+                         < states('sensor.car_charging_battery_floor') | float(0)
+                      or states('sensor.alphaess_instantaneous_grid_i_o_total') | float(0) > 500)) }}
     actions:
-      - action: switch.turn_off
-        target:
-          entity_id: switch.garage_joris_home_charger_charge_now
+      - action: script.car_charge_now_off
+      # Still on: leave the flag, so the retry trigger tries again.
+      - condition: state
+        entity_id: switch.garage_joris_home_charger_charge_now
+        state: "off"
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.car_solar_charging
